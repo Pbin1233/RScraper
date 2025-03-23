@@ -23,6 +23,27 @@ PATIENT_ABSENCES_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/assenze
 # SQLite database connection
 DB_NAME = "borromea.db"
 
+def request_access_to_patient(cod_ospite, jwt_token):
+    """Request access to a patient's records."""
+    url = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/consultazionecartella/new"
+    payload = {
+        "codOspite": cod_ospite,
+        "richiedente": os.getenv("RICHIEDENTE_ID", "542"),
+        "idOrganizzazione": os.getenv("ID_ORGANIZZAZIONE", "2")
+    }
+    headers = {
+        "CBA-JWT": f"Bearer {jwt_token}",
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, headers=headers, json=payload, verify=False)
+    result = response.json()
+    if result.get("success"):
+        print(f"📥 Access request submitted for codOspite {cod_ospite}. ID: {result['data'].get('id')}")
+        return True
+    else:
+        print(f"❌ Failed to request access for codOspite {cod_ospite}")
+        return False
+
 def fetch_additional_info(url, params, jwt_token):
     """Helper function to fetch additional data from an API endpoint with retry on token expiration."""
     headers = {"CBA-JWT": f"Bearer {jwt_token}", "Content-Type": "application/json"}
@@ -61,6 +82,17 @@ def fetch_personal_data(selected_cod_ospite, jwt_token):
         return None
 
     personal_data = response.json().get("data", {})
+
+    # If data is False, request access and retry once
+    if personal_data is False:
+        print(f"🔒 No access to patient {selected_cod_ospite}. Attempting to request access...")
+        if request_access_to_patient(selected_cod_ospite, jwt_token):
+            time.sleep(2)  # Optional: wait before retrying
+            response = requests.get(PERSONAL_DATA_URL, headers=headers, params=params, verify=False)
+            personal_data = response.json().get("data", {})
+            if personal_data is False:
+                print("❌ Still no access after request.")
+                return None
 
     # Fetch Additional Details
     address_data = fetch_additional_info(USER_ADDRESS_URL, {"codOspite": selected_cod_ospite, "tipoIndirizzo": "R"}, jwt_token)

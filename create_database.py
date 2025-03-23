@@ -534,6 +534,7 @@ cursor.execute("""
 CREATE TABLE IF NOT EXISTS lesioni_medicazioni (
     id INTEGER PRIMARY KEY,
     idLesione INTEGER,
+    idRicovero INTEGER,
     idMedTe INTEGER,
     idCassetto INTEGER,
     codArticolo TEXT,
@@ -543,7 +544,6 @@ CREATE TABLE IF NOT EXISTS lesioni_medicazioni (
     descrFarmacoFormatted TEXT,
     data TEXT,
     compilatore INTEGER,
-    idRicovero INTEGER,
     FOREIGN KEY (idLesione) REFERENCES lesioni(lesione_id)
 );
 """)

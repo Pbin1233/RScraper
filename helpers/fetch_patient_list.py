@@ -41,12 +41,12 @@ def fetch_patient_list(jwt_token):
         params = {
             '_dc': get_timestamp(),
             'idProfilo': '3',
-            'dal': get_current_time(),
-            'al': get_current_time(),
+#            'dal': get_current_time(),
+#            'al': get_current_time(),
             'contiene': 'F',
             'maxResults': str(max_results),
             'filtroSettori': 'F',
-            'ancheNonAttivi': 'F',
+            'ancheNonAttivi': 'T',
             'filtroMedico': 'F',
             'firstResult': str(first_result),
         }

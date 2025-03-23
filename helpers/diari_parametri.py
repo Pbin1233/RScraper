@@ -1,14 +1,11 @@
 import requests
 import json
 import time
+from datetime import datetime
 import sqlite3
 
 # API Endpoint for alternative diary retrieval
 ALTERNATIVE_DIARIO_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/portlet/diarioparametri/get"
-
-# Function to generate a timestamp
-def get_timestamp():
-    return str(int(time.time() * 1000))
 
 # API Endpoint
 ALTERNATIVE_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/portlet/diarioparametri/get"
@@ -17,7 +14,10 @@ ALTERNATIVE_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/portlet/diar
 def get_timestamp():
     return str(int(time.time() * 1000))
 
-def fetch_data(patient_id, jwt_token, is_diary, start_date="2020-06-01T00:00:00", end_date="2025-03-20T00:00:00", limit=25):
+def get_current_time():
+    return datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+
+def fetch_data(patient_id, jwt_token, is_diary, start_date="2020-06-01T00:00:00", end_date=get_current_time(), limit=25):
     """
     Fetch all diary or vitals entries using the alternative API.
     Handles pagination using `idDiarioLimit` and `dateDiarioLimit` for diaries, 
@@ -41,7 +41,7 @@ def fetch_data(patient_id, jwt_token, is_diary, start_date="2020-06-01T00:00:00"
             "idProfiloPwdDe": 20,
             "idProfilo": 3,
             "dal": start_date,
-            "al": end_date,
+            "al": get_current_time(),
             "maxResults": 200,
             "soloWarning": "false",
             "parametri": "true" if not is_diary else "false",
