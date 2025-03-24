@@ -43,14 +43,35 @@ def save_cirs_data(patient_id, patient_name, testate_data, details_map):
         test_id = t["id"]
         d = details_map.get(test_id, {})
 
+        # Lista ordinata delle 14 aree CIRS (incluso psichiatrico)
+        categories = [
+            "cardiaca", "ipertensione", "vascolari", "respiratorie",
+            "oongl", "appGiSup", "appGiInf", "epatiche",
+            "renali", "patGenUri", "sisMusSche", "sisNervoso",
+            "endoMeta", "psichiatrico"
+        ]
+
+        values = [d.get(k) for k in categories]
+
+        # Comorbidity Index: solo le prime 13 aree, con punteggio >= 3
+        comorbidity_index = sum(
+            1 for k in categories[:-1]  # exclude 'psichiatrico'
+            if isinstance(d.get(k), int) and d[k] >= 3
+        )
+
+        # Severity Index: media di tutti i valori numerici (escluso psichiatrico)
+        valid_scores = [d.get(k) for k in categories[:-1] if isinstance(d.get(k), int)]
+        severity_index = round(sum(valid_scores) / len(valid_scores), 1) if valid_scores else 0
+
         cursor.execute("""
             INSERT OR REPLACE INTO cirs (
                 id, patient_id, data, compilatore, compilatoreNominativo,
                 compilatoreFigProf, note, scadenza, convertito, punteggio,
                 cardiaca, ipertensione, vascolari, respiratorie, oongl,
                 appGiSup, appGiInf, epatiche, renali, patGenUri,
-                sisMusSche, sisNervoso, endoMeta, psichiatrico
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                sisMusSche, sisNervoso, endoMeta, psichiatrico,
+                indiceComorbilita, indiceSeverita
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             test_id,
             patient_id,
@@ -62,20 +83,9 @@ def save_cirs_data(patient_id, patient_name, testate_data, details_map):
             d.get("scadenza"),
             d.get("convertito"),
             d.get("punteggio"),
-            d.get("cardiaca"),
-            d.get("ipertensione"),
-            d.get("vascolari"),
-            d.get("respiratorie"),
-            d.get("oongl"),
-            d.get("appGiSup"),
-            d.get("appGiInf"),
-            d.get("epatiche"),
-            d.get("renali"),
-            d.get("patGenUri"),
-            d.get("sisMusSche"),
-            d.get("sisNervoso"),
-            d.get("endoMeta"),
-            d.get("psichiatrico")
+            *values,
+            comorbidity_index,
+            severity_index
         ))
 
     conn.commit()

@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS vitals_alternative (
     bmi REAL,
     inr REAL,
     ciclo TEXT,
-    warningPressioneMaxOrto BOOLEAN,  -- ✅ Ensure these fields exist
+    warningPressioneMaxOrto BOOLEAN,
     warningPressioneMinOrto BOOLEAN,
     warningPressioneMaxClino BOOLEAN,
     warningPressioneMinClino BOOLEAN,
@@ -631,7 +631,6 @@ CREATE TABLE IF NOT EXISTS nrs (
 );
 """)
 
-# Create `cirs` table (Indice di Comorbilità CIRS)
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS cirs (
     id INTEGER PRIMARY KEY,
@@ -658,6 +657,8 @@ CREATE TABLE IF NOT EXISTS cirs (
     sisNervoso INTEGER,
     endoMeta INTEGER,
     psichiatrico INTEGER,
+    indiceComorbilita INTEGER,
+    indiceSeverita REAL,
     FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 );
 """)
