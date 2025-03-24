@@ -6,7 +6,7 @@ import sqlite3
 from dotenv import load_dotenv
 from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs
 import urllib3
 
 load_dotenv()
@@ -69,20 +69,24 @@ def main():
         print(f"\n✅ Selected: {selected_patient['nominativo']}")
 
         data_types = {
-            "1": "cadute",
-            "2": "diari",
-            "3": "terapia",
-            "4": "alimentazione/idratazione",
-            "5": "parametri",
-            "6": "anagrafica",
-            "7": "contenzioni",
-            "8": "lesioni",
+            "1": "Cadute",
+            "2": "Diari",
+            "3": "Terapia",
+            "4": "Alimentazione/Idratazione",
+            "5": "Parametri",
+            "6": "Anagrafica",
+            "7": "Contenzioni",
+            "8": "Lesioni",
+            "9": "PI/PAI",
+            "10": "PAINAD",
+            "11": "NRS",
+            "12": "CIRS",
             "A": "all"
         }
 
         print("\n📌 Select data categories to scrape:")
         for key, value in data_types.items():
-            print(f"{key}. {value.capitalize()}")
+            print(f"{key}. {value}")
 
         selected_data = input("\nEnter choices (e.g. 1,3) or 'A' for all: ").strip().upper()
         selected_data = selected_data.replace(" ", "").split(",")
@@ -155,6 +159,46 @@ def main():
                 print("✅ Lesioni saved.")
             else:
                 print("⚠️ No lesioni found.")
+
+        if "9" in selected_data:
+            print("📡 Fetching PI (Piani Individualizzati)...")
+            pi_data = safe_fetch(pi_pai.fetch_pi, selected_id_ricovero, selected_patient['nominativo'])
+            if pi_data:
+                print("✅ PI saved.")
+            else:
+                print("⚠️ No PI data found.")
+
+            print("📡 Fetching PAI (Piani Assistenziali)...")
+            pai_data = safe_fetch(pi_pai.fetch_pai, selected_id_ricovero, selected_patient['nominativo'])
+            if pai_data:
+                print("✅ PAI saved.")
+            else:
+                print("⚠️ No PAI data found.")
+
+        if "10" in selected_data:
+            print("📡 Fetching PAINAD tests...")
+            painad_data = safe_fetch(painad.fetch_painad, selected_id_ricovero, selected_patient['nominativo'])
+            if painad_data:
+                print("✅ PAINAD data saved.")
+            else:
+                print("⚠️ No PAINAD data found.")
+
+        if "11" in selected_data:
+            print("📡 Fetching NRS (Scala Numerica del Dolore)...")
+            nrs_data = safe_fetch(nrs.fetch_nrs, selected_id_ricovero, selected_patient['nominativo'])
+            if nrs_data:
+                print("✅ NRS data saved.")
+            else:
+                print("⚠️ No NRS data found.")
+
+        if "12" in selected_data:
+            print("📡 Fetching CIRS (Comorbidity Index)...")
+            cirs_data = safe_fetch(cirs.fetch_cirs, selected_id_ricovero, selected_patient['nominativo'])
+            if cirs_data:
+                print("✅ CIRS data saved.")
+            else:
+                print("⚠️ No CIRS data found.")
+
 
 
         print("✅ Data collection complete.")

@@ -548,6 +548,120 @@ CREATE TABLE IF NOT EXISTS lesioni_medicazioni (
 );
 """)
 
+# Create `pi` table (Piano Individualizzato)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS pi (
+    pi_id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    deletedData TEXT,
+    tipoBlocco TEXT,
+    bozza BOOLEAN,
+    permessiAnnulla TEXT,
+    codEnte INTEGER,
+    idRicovero INTEGER,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    schedavalida BOOLEAN,
+    nominativo TEXT,
+    isCopia BOOLEAN,
+    listaCompilatori TEXT,
+    team TEXT,
+    listaAree TEXT,
+    areaDescriptions TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+);
+""")
+
+# Create `pai` table (Piano Assistenziale Individualizzato)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS pai (
+    pai_id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    idTe INTEGER,
+    data TEXT,
+    codArea INTEGER,
+    nomeArea TEXT,
+    patologia INTEGER,
+    descrizionePatologia TEXT,
+    problemi TEXT,
+    obiettivi TEXT,
+    strategie TEXT,
+    rispObiettiviDesc TEXT,
+    indicatori TEXT,
+    note TEXT,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    listaCompilatori TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+);
+""")
+
+# Create `painad` table
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS painad (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    punteggio INTEGER,
+    punteggioMassimo INTEGER,
+    domande TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+);
+""")
+
+# Create `nrs` table (Scala Numerica del Dolore)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS nrs (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    valore INTEGER,
+    note TEXT,
+    scadenza INTEGER,
+    tipo INTEGER,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+);
+""")
+
+# Create `cirs` table (Indice di Comorbilità CIRS)
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS cirs (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    scadenza INTEGER,
+    convertito TEXT,
+    punteggio INTEGER,
+    cardiaca INTEGER,
+    ipertensione INTEGER,
+    vascolari INTEGER,
+    respiratorie INTEGER,
+    oongl INTEGER,
+    appGiSup INTEGER,
+    appGiInf INTEGER,
+    epatiche INTEGER,
+    renali INTEGER,
+    patGenUri INTEGER,
+    sisMusSche INTEGER,
+    sisNervoso INTEGER,
+    endoMeta INTEGER,
+    psichiatrico INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+);
+""")
+
 
 
 # Save and close
