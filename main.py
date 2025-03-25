@@ -6,7 +6,7 @@ import sqlite3
 from dotenv import load_dotenv
 from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley
 import urllib3
 
 load_dotenv()
@@ -83,6 +83,9 @@ def main():
             "12": "CIRS",
             "13": "Ingresso",
             "14": "Barthel",
+            "15": "Braden",
+            "16": "Tinetti",
+            "17": "Conley",
             "A": "all"
         }
 
@@ -224,6 +227,29 @@ def main():
             else:
                 print("⚠️ No Barthel data found.")
 
+        if "15" in selected_data:
+            print("📡 Fetching Braden test data...")
+            braden_data = safe_fetch(braden.fetch_braden, selected_id_ricovero, selected_patient['nominativo'])
+            if braden_data:
+                print("✅ Braden data saved.")
+            else:
+                print("⚠️ No Braden data found.")
+
+        if "16" in selected_data:
+            print("📡 Fetching Tinetti test data...")
+            tinetti_data = safe_fetch(tinetti.fetch_tinetti, selected_id_ricovero, selected_patient['nominativo'])
+            if tinetti_data:
+                print("✅ Tinetti data saved.")
+            else:
+                print("⚠️ No Tinetti data found.")
+
+        if "17" in selected_data:
+            print("📡 Fetching Conley test data...")
+            conley_data = safe_fetch(conley.fetch_conley, selected_id_ricovero, selected_patient['nominativo'])
+            if conley_data:
+                print("✅ Conley data saved.")
+            else:
+                print("⚠️ No Conley data found.")
 
 
         print("✅ Data collection complete.")

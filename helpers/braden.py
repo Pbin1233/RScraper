@@ -10,8 +10,8 @@ def get_timestamp():
 def get_current_time():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
-def fetch_barthel_details(test_id, jwt_token):
-    url = "https://pvc03.cbacloud.it:4445/cba/css/cs/ws/skval/test/getTest"
+def fetch_braden_details(test_id, jwt_token):
+    url = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/skval/test/getTest"
     headers = {
         "CBA-JWT": f"Bearer {jwt_token}",
         "Content-Type": "application/json"
@@ -26,19 +26,19 @@ def fetch_barthel_details(test_id, jwt_token):
     }
 
     response = requests.get(url, headers=headers, params=params, verify=False)
-    print(f"📡 Fetching Barthel ID {test_id}: {response.url}")
+    print(f"📡 Fetching Braden ID {test_id}: {response.url}")
     if response.status_code == 200:
         return response.json().get("data", {})
     else:
-        print(f"⚠️ Failed to fetch Barthel ID {test_id}: {response.status_code}")
+        print(f"⚠️ Failed to fetch Braden ID {test_id}: {response.status_code}")
         return None
 
-def save_barthel_data(patient_id, patient_name, testate_data, details_map):
+def save_braden_data(patient_id, patient_name, testate_data, details_map):
     conn = sqlite3.connect("borromea.db")
     cursor = conn.cursor()
 
     cursor.execute("""
-        CREATE TABLE IF NOT EXISTS barthel (
+        CREATE TABLE IF NOT EXISTS braden (
             id INTEGER PRIMARY KEY,
             patient_id INTEGER,
             data TEXT,
@@ -48,51 +48,41 @@ def save_barthel_data(patient_id, patient_name, testate_data, details_map):
             note TEXT,
             punteggio INTEGER,
             punteggioMassimo INTEGER,
-            igiene_personale INTEGER,
-            bagno_doccia INTEGER,
-            alimentazione INTEGER,
-            abbigliamento INTEGER,
-            cont_inte INTEGER,
-            cont_uri INTEGER,
-            trasferimento INTEGER,
-            toilette INTEGER,
-            scale INTEGER,
-            deambulazione INTEGER,
-            carrozzina INTEGER
+            scadenza INTEGER,
+            percezione_sensoriale INTEGER,
+            umidita INTEGER,
+            attivita INTEGER,
+            mobilita INTEGER,
+            nutrizione INTEGER,
+            frizione_scivolamento INTEGER
         )
     """)
 
     domanda_map = {
-        "Igiene personale": "igiene_personale",
-        "Bagno / Doccia (lavarsi)": "bagno_doccia",
-        "Alimentazione": "alimentazione",
-        "Abbigliamento": "abbigliamento",
-        "Continenza intestinale": "cont_inte",
-        "Continenza urinaria": "cont_uri",
-        "Trasferimento letto o sedia": "trasferimento",
-        "Toilette": "toilette",
-        "Scale": "scale",
-        "Deambulazione": "deambulazione",
-        "Uso della carrozzina (alternativo a deambulazione)": "carrozzina"
+        "Percezione sensoriale": "percezione_sensoriale",
+        "Umidità": "umidita",
+        "Attività": "attivita",
+        "Mobilità": "mobilita",
+        "Nutrizione": "nutrizione",
+        "Frizione - scivolamento": "frizione_scivolamento"
     }
 
     for t in testate_data:
         test_id = t["id"]
         d = details_map.get(test_id, {})
-
-        # Punteggi per ogni voce
         punteggi = {v: None for v in domanda_map.values()}
+
         for q in d.get("domande", []):
             col = domanda_map.get(q["descrizione"])
             if col:
                 punteggi[col] = q.get("punteggioRisposta")
 
         cursor.execute(f"""
-            INSERT OR REPLACE INTO barthel (
+            INSERT OR REPLACE INTO braden (
                 id, patient_id, data, compilatore, compilatoreNominativo,
-                compilatoreFigProf, note, punteggio, punteggioMassimo,
+                compilatoreFigProf, note, punteggio, punteggioMassimo, scadenza,
                 {', '.join(punteggi.keys())}
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, {', '.join(['?'] * len(punteggi))})
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, {', '.join(['?'] * len(punteggi))})
         """, (
             test_id,
             patient_id,
@@ -103,21 +93,22 @@ def save_barthel_data(patient_id, patient_name, testate_data, details_map):
             d.get("note"),
             d.get("punteggio"),
             d.get("punteggioMassimo"),
+            d.get("scadenza"),
             *punteggi.values()
         ))
 
     conn.commit()
     conn.close()
-    print("✅ All Barthel entries saved with separated fields.")
+    print("✅ All Braden entries saved with separated fields.")
 
-def fetch_barthel(patient_id, patient_name, jwt_token):
+def fetch_braden(patient_id, patient_name, jwt_token):
     headers = {
         "CBA-JWT": f"Bearer {jwt_token}",
         "Content-Type": "application/json"
     }
 
-    testate_url = "https://pvc03.cbacloud.it:4445/cba/css/cs/ws/testate/get"
-    prev_url = "https://pvc03.cbacloud.it:4445/cba/css/cs/ws/testate/prev"
+    testate_url = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/testate/get"
+    prev_url = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/testate/prev"
     all_testate = []
     known_ids = set()
     details_map = {}
@@ -125,7 +116,7 @@ def fetch_barthel(patient_id, patient_name, jwt_token):
     params = {
         "_dc": get_timestamp(),
         "tipoTestata": "Test",
-        "sottoTipoTestata": 76,
+        "sottoTipoTestata": 16,
         "idRicovero": patient_id,
         "idProfilo": 3,
         "compilatore": 27,
@@ -151,7 +142,7 @@ def fetch_barthel(patient_id, patient_name, jwt_token):
             "id": last["id"],
             "data": last["data"].replace(" ", "T"),
             "tipoTestata": "Test",
-            "sottoTipoTestata": 76,
+            "sottoTipoTestata": 16,
             "idRicovero": patient_id,
             "idProfilo": 3,
             "compilatore": 27
@@ -171,9 +162,9 @@ def fetch_barthel(patient_id, patient_name, jwt_token):
             break
 
     for t in all_testate:
-        d = fetch_barthel_details(t["id"], jwt_token)
+        d = fetch_braden_details(t["id"], jwt_token)
         if d:
             details_map[t["id"]] = d
 
-    save_barthel_data(patient_id, patient_name, all_testate, details_map)
+    save_braden_data(patient_id, patient_name, all_testate, details_map)
     return all_testate

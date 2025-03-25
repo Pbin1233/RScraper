@@ -755,6 +755,107 @@ CREATE TABLE esame_obiettivo (
 );
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS barthel (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    punteggio INTEGER,
+    punteggioMassimo INTEGER,
+    igiene_personale INTEGER,
+    bagno_doccia INTEGER,
+    alimentazione INTEGER,
+    abbigliamento INTEGER,
+    cont_inte INTEGER,
+    cont_uri INTEGER,
+    trasferimento INTEGER,
+    toilette INTEGER,
+    scale INTEGER,
+    deambulazione INTEGER,
+    carrozzina INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS braden (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    punteggio INTEGER,
+    punteggioMassimo INTEGER,
+    scadenza INTEGER,
+    percezione_sensoriale INTEGER,
+    umidita INTEGER,
+    attivita INTEGER,
+    mobilita INTEGER,
+    nutrizione INTEGER,
+    frizione_scivolamento INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS tinetti (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    scadenza INTEGER,
+    punteggio INTEGER,
+    punteggio_andatura INTEGER,
+    punteggio_equilibrio INTEGER,
+    andInizioDeamb INTEGER,
+    andLunghPassoDx INTEGER,
+    andAltezzaPassoDx INTEGER,
+    andLunghPassoSx INTEGER,
+    andAltezzaPassoSx INTEGER,
+    andSimmetria INTEGER,
+    andContinuitaPasso INTEGER,
+    andTraiettoria INTEGER,
+    andTronco INTEGER,
+    andCammino INTEGER,
+    eqDaSeduto INTEGER,
+    eqAlzarsiSedia INTEGER,
+    eqTentativo INTEGER,
+    eqStazEretta5Sec INTEGER,
+    eqStazErettaProl INTEGER,
+    eqRomberg INTEGER,
+    eqRombergSens INTEGER,
+    eqGirarsi INTEGER,
+    eqGirarsiStab INTEGER,
+    eqSedersi INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS conley (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    scadenza INTEGER,
+    punteggio INTEGER,
+    domanda1 INTEGER,
+    domanda2 INTEGER,
+    domanda3 INTEGER,
+    domanda4 INTEGER,
+    domanda5 INTEGER,
+    domanda6 INTEGER
+)
+""")
+
 
 # Save and close
 conn.commit()
