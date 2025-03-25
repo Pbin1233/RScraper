@@ -6,7 +6,7 @@ import sqlite3
 from dotenv import load_dotenv
 from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel
 import urllib3
 
 load_dotenv()
@@ -81,6 +81,8 @@ def main():
             "10": "PAINAD",
             "11": "NRS",
             "12": "CIRS",
+            "13": "Ingresso",
+            "14": "Barthel",
             "A": "all"
         }
 
@@ -198,6 +200,29 @@ def main():
                 print("✅ CIRS data saved.")
             else:
                 print("⚠️ No CIRS data found.")
+
+        if "13" in selected_data:
+            print("📡 Fetching Ingresso: Esame Neurologico...")
+            neuro_data = safe_fetch(ingresso.fetch_esame_neurologico, selected_id_ricovero, selected_patient['nominativo'])
+            if neuro_data:
+                print("✅ Esame Neurologico saved.")
+            else:
+                print("⚠️ No Esame Neurologico found.")
+
+            print("📡 Fetching Ingresso: Esame Obiettivo...")
+            obiettivo_data = safe_fetch(ingresso.fetch_esame_obiettivo, selected_id_ricovero, selected_patient['nominativo'])
+            if obiettivo_data:
+                print("✅ Esame Obiettivo saved.")
+            else:
+                print("⚠️ No Esame Obiettivo found.")
+
+        if "14" in selected_data:
+            print("📡 Fetching Barthel test data...")
+            barthel_data = safe_fetch(barthel.fetch_barthel, selected_id_ricovero, selected_patient['nominativo'])
+            if barthel_data:
+                print("✅ Barthel data saved.")
+            else:
+                print("⚠️ No Barthel data found.")
 
 
 
