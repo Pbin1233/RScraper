@@ -1,170 +1,147 @@
 import requests
 import sqlite3
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 
 # API Endpoints
-INTAKE_SUMMARY_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/testate/temporali/get"
+WEEK_LIST_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/testate/temporali/get"
 INTAKE_DETAILS_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/parametri/alimentazione/list"
 
 def get_timestamp():
     return str(int(time.time() * 1000))
 
-def fetch_intake(patient_id, jwt_token):
-    """Fetches both summary and detailed intake data for a patient."""
-    
+def fetch_all_intake_weeks(patient_id, jwt_token):
+    print(f"\n🚀 Fetching all alimentation weeks for patient {patient_id}")
+    weeks = fetch_week_list(patient_id, jwt_token)
+
+    if not weeks:
+        print("❌ No week data available.")
+        return
+
+    for week in weeks:
+        inizio_range = week.get("inizioRange")
+        fine_range = week.get("fineRange")
+        print(f"➡️ Found week: {inizio_range} → {fine_range}")
+        ...
+
+
+def fetch_week_list(patient_id, jwt_token):
     headers = {
         "CBA-JWT": f"Bearer {jwt_token}",
         "Content-Type": "application/json"
     }
 
-    # Step 1: Fetch Weekly Summary
-    print("📊 Fetching intake summary data...")
-    fetch_intake_summary(patient_id, jwt_token, headers)
-
-    # Step 2: Fetch Detailed Data
-    print("📖 Fetching detailed intake data...")
-    fetch_intake_details(patient_id, jwt_token, headers)
-
-def fetch_intake_summary(patient_id, jwt_token, headers):
-    """Fetches the intake summary (food & water) for the past few weeks."""
-    
     params = {
         "_dc": get_timestamp(),
-        "tipoTestata": "",
+        "tipoTestata": "AlimentazioneIdratazione",
         "idRicovero": patient_id,
-        "data": "2025-03-15T18:32:54",  # Use current timestamp in real-time
         "gap": 3,
         "page": 1,
         "start": 0,
-        "limit": 25
+        "limit": 100
     }
 
-    response = requests.get(INTAKE_SUMMARY_URL, headers=headers, params=params, verify=False)
+    print(f"\n🔍 Requesting week list for idRicovero {patient_id}")
+    print("🔗 URL:", WEEK_LIST_URL)
+    print("📦 Params:", json.dumps(params, indent=2))
+
+    response = requests.get(WEEK_LIST_URL, headers=headers, params=params, verify=False)
+
+    print(f"📥 Response status: {response.status_code}")
 
     if response.status_code == 401:
-        print("🔄 Token expired during intake summary fetch. Refreshing...")
-        from helpers.auth import refresh_jwt_token
-        jwt_token = refresh_jwt_token()
-        headers["CBA-JWT"] = f"Bearer {jwt_token}"
-        response = requests.get(INTAKE_SUMMARY_URL, headers=headers, params=params, verify=False)
-    
-    if response.status_code == 200:
-        data = response.json()
-        if "data" in data and data["data"]:
-            save_intake(patient_id, data["data"])
-        else:
-            print(f"🚨 No intake summary found for patient {patient_id}")
-    else:
-        print(f"⚠️ Error fetching intake summary! Status Code: {response.status_code}")
+        raise requests.exceptions.HTTPError("Token expired", response=response)
 
+    if response.status_code != 200:
+        print(f"⚠️ Error fetching week list: {response.status_code}")
+        return []
 
-def fetch_intake_details(patient_id, jwt_token, headers):
-    from datetime import datetime, timedelta
-    import json
+    try:
+        data = response.json().get("data", [])
+        print(f"📊 Week entries received: {len(data)}")
+        if data:
+            print("📅 Example week:", json.dumps(data[0], indent=2))
+        return data
+    except Exception as e:
+        print(f"❌ Failed to parse week list JSON: {e}")
+        return []
 
-    current_date = datetime.now()
+def fetch_week_data(patient_id, inizio_range, jwt_token):
+    headers = {
+        "CBA-JWT": f"Bearer {jwt_token}",
+        "Content-Type": "application/json"
+    }
 
-    while True:
-        iso_date = current_date.isoformat(timespec='seconds') + "+01:00"
+    date_with_offset = inizio_range + "+01:00"
+    params = {
+        "_dc": get_timestamp(),
+        "idRicovero": patient_id,
+        "data": date_with_offset,
+        "page": 1,
+        "start": 0,
+        "limit": 25,
+        "group": '{"property":"giornoDellaSettimana","direction":"ASC"}'
+    }
 
-        params = {
-            "_dc": get_timestamp(),
-            "idRicovero": patient_id,
-            "data": iso_date,
-            "page": 1,
-            "start": 0,
-            "limit": 25,
-            "group": '{"property":"giornoDellaSettimana","direction":"ASC"}'
-        }
+    response = requests.get(INTAKE_DETAILS_URL, headers=headers, params=params, verify=False)
 
-        print(f"\n📅 Fetching data for week starting {current_date.date()}...")
+    if response.status_code == 401:
+        raise requests.exceptions.HTTPError("Token expired", response=response)
+    if response.status_code != 200:
+        print(f"⚠️ Error fetching data for {inizio_range[:10]}: {response.status_code}")
+        return []
 
-        response = requests.get(INTAKE_DETAILS_URL, headers=headers, params=params, verify=False)
-
-        if response.status_code == 401:
-            print("🔄 Token expired during intake detail fetch. Refreshing...")
-            from helpers.auth import refresh_jwt_token
-            jwt_token = refresh_jwt_token()
-            headers["CBA-JWT"] = f"Bearer {jwt_token}"
-            continue
-
-        print(f"📦 Raw response ({response.status_code}):")
-        try:
-            data = response.json()
-            print(json.dumps(data, indent=2)[:1000])
-        except Exception as e:
-            print("❌ Failed to parse JSON:", e)
-            break
-
-        if response.status_code == 200:
-            entries = data.get("data", [])
-
-            # ⛔ Stop if all entries are placeholders
-            all_placeholders = all(
-                e.get("id", 0) == -10000 or e.get("nominativo") is None
-                for e in entries
-            )
-
-            if not entries or all_placeholders:
-                print(f"📭 No real data found for {current_date.date()}. Stopping fetch.")
-                break
-
-            save_intake(patient_id, entries)
-            current_date -= timedelta(days=7)
-        else:
-            print(f"⚠️ Error fetching data: {response.status_code}")
-            break
+    try:
+        return response.json().get("data", [])
+    except Exception as e:
+        print(f"❌ Failed to parse intake JSON: {e}")
+        return []
 
 def save_intake(patient_id, intake_data):
-    """Saves food and water intake data into the SQLite database with more detail."""
-
     conn = sqlite3.connect("borromea.db")
     cursor = conn.cursor()
 
     for entry in intake_data:
-        # 🚫 Skip placeholder data
         entry_id = entry.get("id")
         if entry_id is None or entry_id < 1000:
             continue
 
         intake_entry = {
-                "patient_id": patient_id,
-                "idRicovero": entry.get("idRicovero"),
-                "data": entry.get("data"),
-                "tipo": entry.get("tipo", "UNKNOWN"),
-                "quantita": entry.get("quantita", 0),
-                "tipoRecord": entry.get("tipoRecord", ""),
-                "compilatore": entry.get("compilatore"),
-                "compilatoreNominativo": entry.get("compilatoreNominativo", ""),
-                "compilatoreFigProf": entry.get("compilatoreFigProf", ""),
-                "giornoDellaSettimana": entry.get("giornoDellaSettimana", -1),
-                "nomeIcona": entry.get("nomeIcona", ""),
-                "oraConvalida": entry.get("oraConvalida", ""),
-                "convalidato": 1 if entry.get("convalidato") else 0,
-                "note": entry.get("note"),
-                "bozza": 1 if entry.get("bozza") else 0,
-                "regAnnullate": 1 if entry.get("regAnnullate") else 0,
-                "tipoBlocco": json.dumps(entry.get("tipoBlocco", [])),
-                "permessiAnnulla": json.dumps(entry.get("permessiAnnulla", [])),
-                "codEnte": entry.get("codEnte"),
-                "hashAnnulla": entry.get("hashAnnulla"),
-                "deletedData": entry.get("deletedData"),
-                "id": entry.get("id"),  # the unique record id
-                "nominativo": entry.get("nominativo"),
-            }
+            "patient_id": patient_id,
+            "idRicovero": entry.get("idRicovero"),
+            "data": entry.get("data"),
+            "tipo": entry.get("tipo", "UNKNOWN"),
+            "quantita": entry.get("quantita", 0),
+            "tipoRecord": entry.get("tipoRecord", ""),
+            "compilatore": entry.get("compilatore"),
+            "compilatoreNominativo": entry.get("compilatoreNominativo", ""),
+            "compilatoreFigProf": entry.get("compilatoreFigProf", ""),
+            "giornoDellaSettimana": entry.get("giornoDellaSettimana", -1),
+            "nomeIcona": entry.get("nomeIcona", ""),
+            "oraConvalida": entry.get("oraConvalida", ""),
+            "convalidato": 1 if entry.get("convalidato") else 0,
+            "note": entry.get("note"),
+            "bozza": 1 if entry.get("bozza") else 0,
+            "regAnnullate": 1 if entry.get("regAnnullate") else 0,
+            "tipoBlocco": json.dumps(entry.get("tipoBlocco", [])),
+            "permessiAnnulla": json.dumps(entry.get("permessiAnnulla", [])),
+            "codEnte": entry.get("codEnte"),
+            "hashAnnulla": entry.get("hashAnnulla"),
+            "deletedData": entry.get("deletedData"),
+            "id": entry.get("id"),
+            "nominativo": entry.get("nominativo")
+        }
 
         columns = ", ".join(intake_entry.keys())
-        placeholders = ", ".join(["?" for _ in intake_entry])
+        placeholders = ", ".join(["?"] * len(intake_entry))
         values = tuple(intake_entry.values())
 
         cursor.execute(f"""
             INSERT OR REPLACE INTO intake ({columns})
-            VALUES ({placeholders});
+            VALUES ({placeholders})
         """, values)
 
     conn.commit()
     conn.close()
     print(f"✅ Intake data for patient {patient_id} saved successfully!")
-

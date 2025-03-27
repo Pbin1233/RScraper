@@ -132,7 +132,7 @@ for diary_id, table_name in diary_types.items():
     """)
 
 cursor.execute("""
-CREATE TABLE IF NOT EXISTS vitals_alternative (
+CREATE TABLE IF NOT EXISTS vitals (
     id INTEGER PRIMARY KEY,
     patient_id INTEGER,
     idRicovero INTEGER,
@@ -254,77 +254,6 @@ CREATE TABLE IF NOT EXISTS intake (
     nominativo TEXT,
 
     FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
-);
-""")
-
-
-# Create `vitals` table
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS vitals (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    patient_id INTEGER,
-    idRicovero INTEGER,
-    data TEXT,
-    compilatore INTEGER,
-    compilatoreNominativo TEXT,
-    compilatoreFigProf TEXT,
-    pressioneMaxOrto REAL,
-    pressioneMinOrto REAL,
-    pressioneMaxClino REAL,
-    pressioneMinClino REAL,
-    pressioneMaxNoSpec REAL,
-    pressioneMinNoSpec REAL,
-    frequenza INTEGER,
-    temperatura REAL,
-    curvaGli TEXT,
-    peso REAL,
-    alvo TEXT,
-    diuresi TEXT,
-    ossigeno TEXT,
-    spo2 REAL,
-    spo2NoSpec REAL,
-    tipoRespirazione TEXT,
-    tipoFreqCardiaca TEXT,
-    note TEXT,
-    sonno TEXT,
-    alimentazione TEXT,
-    mobilita TEXT,
-    dolore TEXT,
-    freqRespiratoria INTEGER,
-    spo2ot REAL,
-    oSpo2ot REAL,
-    comportamento TEXT,
-    comportamentoAttivita TEXT,
-    avpu TEXT,
-    altezza REAL,
-    malattiaAcuta TEXT,
-    notePeso TEXT,
-    testDroghe TEXT,
-    testDrogheDescr TEXT,
-    testAlcool TEXT,
-    testGravidanza TEXT,
-    bmi REAL,
-    inr REAL,
-    ciclo TEXT,
-    tipoFlusso TEXT,
-    ulterioriParametri TEXT,
-    punteggioMMSE REAL,
-    punteggioCDR REAL,
-    vas TEXT,
-    vrs TEXT,
-    nrs TEXT,
-    noppain TEXT,
-    noppain55 TEXT,
-    painad TEXT,
-    visualSkvalMust TEXT,
-    mews REAL,
-    punteggioMews REAL,
-    news REAL,
-    punteggioNews REAL,
-    parametroATre TEXT,
-    listaWarning TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero),
-    UNIQUE (idRicovero, data)  -- Prevents duplicate records per patient stay & timestamp
 );
 """)
 
@@ -505,7 +434,6 @@ CREATE TABLE IF NOT EXISTS lesioni (
 );
 """)
 
-
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS lesioni_dettagli (
     dettaglio_id INTEGER PRIMARY KEY,
@@ -530,6 +458,7 @@ CREATE TABLE IF NOT EXISTS lesioni_dettagli (
 );
 """)
 
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS lesioni_medicazioni (
     id INTEGER PRIMARY KEY,
@@ -547,6 +476,25 @@ CREATE TABLE IF NOT EXISTS lesioni_medicazioni (
     FOREIGN KEY (idLesione) REFERENCES lesioni(lesione_id)
 );
 """)
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS lesione_med_dettagli (
+    id INTEGER PRIMARY KEY,
+    idLesione INTEGER,
+    idMedTe INTEGER,
+    idCassetto INTEGER,
+    codArticolo TEXT,
+    aic TEXT,
+    ordine TEXT,
+    descrCassetto TEXT,
+    descrFarmacoFormatted TEXT,
+    data TEXT,
+    compilatore INTEGER,
+    idRicovero INTEGER,
+    FOREIGN KEY (idLesione) REFERENCES lesioni(lesione_id)
+);
+""")
+
 
 # Create `pi` table (Piano Individualizzato)
 cursor.execute("""

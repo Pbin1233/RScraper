@@ -66,11 +66,8 @@ def fetch_data(patient_id, jwt_token, is_diary, start_date="2020-06-01T00:00:00"
 
         response = requests.get(ALTERNATIVE_URL, headers=headers, params=params, verify=False)
 
-        print(f"\n📡 Request Params: {json.dumps(params, indent=2)}")
-
         if response.status_code == 200:
             data = response.json()
-            print(f"📥 API Response:\n{json.dumps(data, indent=2)}")
 
             if "data" in data and "lista" in data["data"]:
                 new_entries = data["data"]["lista"]
@@ -145,10 +142,10 @@ def save_data(patient_id, entries, is_diary):
             )
 
         else:
-            table_name = "vitals_alternative"
+            table_name = "vitals"
 
             query = f"""
-            INSERT OR REPLACE INTO vitals_alternative (
+            INSERT OR REPLACE INTO vitals (
                 id, patient_id, idRicovero, compilatoreNominativo, compilatoreFigProf, nomeForm, dataOra,
                 pressioneMaxOrto, pressioneMinOrto, pressioneMaxClino, pressioneMinClino,
                 pressioneMaxNoSpec, pressioneMinNoSpec, frequenza, freqRespiratoria, temperatura, curvaGli, peso,
@@ -188,8 +185,6 @@ def save_data(patient_id, entries, is_diary):
                 entry.get("listIndex")
             )
 
-
-        print(f"\n🔍 Executing Query for {table_name}...\n")
 
         try:
             cursor.execute(query, values)

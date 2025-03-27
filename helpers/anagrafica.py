@@ -44,6 +44,42 @@ def request_access_to_patient(cod_ospite, jwt_token):
         print(f"❌ Failed to request access for codOspite {cod_ospite}")
         return False
 
+def fetch_all_hospitalizations(cod_ospite, jwt_token):
+    headers = {"CBA-JWT": f"Bearer {jwt_token}", "Content-Type": "application/json"}
+    params = {
+        "_dc": str(int(time.time() * 1000)),
+        "codospite": cod_ospite,
+        "soloTipologieAbilitate": "true",
+        "page": 1,
+        "start": 0,
+        "limit": 25
+    }
+
+    response = requests.get(
+        "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/ricoveri/search",
+        headers=headers,
+        params=params,
+        verify=False
+    )
+
+    if response.status_code == 401:
+        print("🔄 Token expired during hospitalization fetch. Refreshing...")
+        from helpers.auth import refresh_jwt_token
+        jwt_token = refresh_jwt_token()
+        headers["CBA-JWT"] = f"Bearer {jwt_token}"
+        response = requests.get(
+            "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/ricoveri/search",
+            headers=headers,
+            params=params,
+            verify=False
+        )
+
+    if response.status_code == 200:
+        return response.json().get("data", [])
+    else:
+        print(f"⚠️ Error fetching hospitalizations: {response.status_code}")
+        return []
+
 def fetch_additional_info(url, params, jwt_token):
     """Helper function to fetch additional data from an API endpoint with retry on token expiration."""
     headers = {"CBA-JWT": f"Bearer {jwt_token}", "Content-Type": "application/json"}

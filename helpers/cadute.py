@@ -258,7 +258,7 @@ def fetch_fall_details(fall_id, jwt_token):
         headers["CBA-JWT"] = f"Bearer {jwt_token}"
         response = requests.get(FALLS_DETAILS_URL, headers=headers, params=params, verify=False)
 
-    print(f"📡 Fetching details for Fall ID {fall_id}: {response.url}")
+    print(f"📡 Fetching details for Fall ID {fall_id}")
 
     try:
         detailed = response.json()

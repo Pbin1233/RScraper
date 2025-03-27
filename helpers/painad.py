@@ -82,7 +82,7 @@ def fetch_painad(patient_id, patient_name, jwt_token):
                 all_testate.append(d)
                 known_ids.add(d["id"])
 
-    while len(all_testate) < 6:
+    while True:
         last = all_testate[-1]
         params_prev = {
             "_dc": get_timestamp(),
