@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
 from helpers.anagrafica import fetch_all_hospitalizations
+from helpers.alimentazione import get_default_start_date
 from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley
 import urllib3
 
@@ -94,6 +95,7 @@ def main():
             "15": "Braden",
             "16": "Tinetti",
             "17": "Conley",
+            "18": "Alimentazione/Idratazione (recent)",
             "A": "all"
         }
 
@@ -139,10 +141,10 @@ def main():
                 safe_fetch(terapia.fetch_medications, selected_id_ricovero)
 
             if "4" in selected_data:
-                print("📡 Fetching alimentation...")
-                safe_fetch(alimentazione.fetch_all_intake_weeks, selected_id_ricovero)
-                print("✅ Dietary records fetched.")
-
+                print("📡 Fetching alimentazione/idratazione...")
+                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, jwt_token)
+                print(f"✅ {intake_data} records saved.")
+    
             if "5" in selected_data:
                 print("📡 Fetching parameters...")
                 parametri_data = safe_fetch(diari_parametri.fetch_data, selected_id_ricovero, is_diary=False)
@@ -253,6 +255,12 @@ def main():
                     print("✅ Conley data saved.")
                 else:
                     print("⚠️ No Conley data found.")
+
+            if "18" in selected_data:
+                print("📡 Fetching alimentazione/idratazione from default start...")
+                start_date = get_default_start_date(selected_patient["codOspite"], selected_id_ricovero, jwt_token)
+                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, jwt_token, start_date=start_date, infinite=False)
+                print(f"✅ {intake_data} records saved.")
 
         # Fetch anagrafica only once — it’s not per ricovero
         if "6" in selected_data:

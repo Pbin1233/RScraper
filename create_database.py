@@ -227,7 +227,7 @@ CREATE TABLE IF NOT EXISTS medications (
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS intake (
-    id INTEGER PRIMARY KEY,  -- this stores the record's own unique ID from the API
+    id INTEGER PRIMARY KEY,
     patient_id INTEGER,
     idRicovero INTEGER,
     data TEXT,
@@ -241,19 +241,15 @@ CREATE TABLE IF NOT EXISTS intake (
     nomeIcona TEXT,
     oraConvalida TEXT,
     convalidato BOOLEAN,
-    
-    -- 🆕 Additional detailed fields
     note TEXT,
     bozza BOOLEAN,
     regAnnullate BOOLEAN,
-    tipoBlocco TEXT,  -- JSON string
-    permessiAnnulla TEXT,  -- JSON string
+    tipoBlocco TEXT,
+    permessiAnnulla TEXT,
     codEnte INTEGER,
     hashAnnulla TEXT,
     deletedData TEXT,
-    nominativo TEXT,
-
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    nominativo TEXT
 );
 """)
 
