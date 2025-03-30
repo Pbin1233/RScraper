@@ -28,9 +28,11 @@ def fetch_cirs_details(test_id, jwt_token):
     }
 
     response = requests.get(url, headers=headers, params=params, verify=False)
-    print(f"📡 Fetching CIRS ID {test_id}: {response.url}")
+    print(f"📡 Fetching CIRS ID {test_id}")
     if response.status_code == 200:
         return response.json().get("data", {})
+    elif response.status_code == 401:
+        raise requests.exceptions.HTTPError(response=response)
     else:
         print(f"⚠️ Failed to fetch CIRS ID {test_id}: {response.status_code}")
         return None
@@ -124,6 +126,10 @@ def fetch_cirs(patient_id, patient_name, jwt_token):
             if d["id"] not in known_ids:
                 all_testate.append(d)
                 known_ids.add(d["id"])
+
+    if not all_testate:
+        print("⚠️ No CIRS entries found.")
+        return []
 
     while True:
         last = all_testate[-1]

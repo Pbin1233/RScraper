@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS patients (
     idSede INTEGER,
     idReparto INTEGER,
     dal TEXT,
-    al TEXT
+    al TEXT,
+    attivo BOOLEAN
 );
 """)
 
@@ -249,7 +250,8 @@ CREATE TABLE IF NOT EXISTS intake (
     codEnte INTEGER,
     hashAnnulla TEXT,
     deletedData TEXT,
-    nominativo TEXT
+    nominativo TEXT,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 );
 """)
 
@@ -305,7 +307,7 @@ CREATE TABLE IF NOT EXISTS personal_data (
     tipoRicovero INTEGER,
     sosiaProfessione INTEGER,
     sosiaSituazionePens INTEGER,
-
+    
     FOREIGN KEY (codOspite) REFERENCES patients(idRicovero)
 );
 """)
@@ -364,6 +366,36 @@ CREATE TABLE IF NOT EXISTS hospital_assignments (
     FOREIGN KEY (idRicovero) REFERENCES personal_data(ricovero_id)
 );
 """)
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS hospitalizations_history (
+    id INTEGER PRIMARY KEY,
+    codOspite INTEGER,
+    idProfilo INTEGER,
+    dal TEXT,
+    al TEXT,
+    idRicoveroCU INTEGER,
+    chiusoDa INTEGER,
+    chiusoData TEXT,
+    statoArchiviazione TEXT,
+    archiviazioneInit TEXT,
+    nosologico TEXT,
+    codicePsiche TEXT,
+    autoSomministrazione TEXT,
+    fineRiconciliazione TEXT,
+    compilatoreChiusura TEXT,
+    idSwEsterni TEXT,
+    coRicoveroLight TEXT,
+    nosologicoFormatted TEXT,
+    checkNosologico TEXT,
+    motivoDimissioneCu2 TEXT,
+    idRicoveroCollegato INTEGER,
+    idOrgProfilo INTEGER,
+    descrProfilo TEXT,
+    FOREIGN KEY (codOspite) REFERENCES personal_data(codOspite)
+);
+""")
+
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS patient_absences (
@@ -720,7 +752,8 @@ CREATE TABLE IF NOT EXISTS barthel (
     toilette INTEGER,
     scale INTEGER,
     deambulazione INTEGER,
-    carrozzina INTEGER
+    carrozzina INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 )
 """)
 
@@ -741,7 +774,8 @@ CREATE TABLE IF NOT EXISTS braden (
     attivita INTEGER,
     mobilita INTEGER,
     nutrizione INTEGER,
-    frizione_scivolamento INTEGER
+    frizione_scivolamento INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 )
 """)
 
@@ -777,7 +811,8 @@ CREATE TABLE IF NOT EXISTS tinetti (
     eqRombergSens INTEGER,
     eqGirarsi INTEGER,
     eqGirarsiStab INTEGER,
-    eqSedersi INTEGER
+    eqSedersi INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 )
 """)
 
@@ -796,7 +831,8 @@ CREATE TABLE IF NOT EXISTS conley (
     domanda3 INTEGER,
     domanda4 INTEGER,
     domanda5 INTEGER,
-    domanda6 INTEGER
+    domanda6 INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
 )
 """)
 

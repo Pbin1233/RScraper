@@ -77,8 +77,8 @@ def fetch_patient_list(jwt_token):
             cursor.execute("""
                 INSERT OR REPLACE INTO patients (
                     codOspite, idRicovero, nome, cognome, sesso, dataNascita, 
-                    codiceFiscale, idProfilo, descrProfilo, idSede, idReparto, dal, al
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    codiceFiscale, idProfilo, descrProfilo, idSede, idReparto, dal, al, attivo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 patient.get("codOspite"),
                 patient.get("idRicovero"),
@@ -92,7 +92,8 @@ def fetch_patient_list(jwt_token):
                 patient.get("idSede"),
                 patient.get("idReparto"),
                 patient.get("dal"),
-                patient.get("al")
+                patient.get("al"),
+                patient.get("attivo")
             ))
 
         first_result += max_results  # Move to next batch

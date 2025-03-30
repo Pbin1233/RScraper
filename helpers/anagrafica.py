@@ -329,6 +329,44 @@ def save_personal_data(personal_data, address, hospital, residence, regional_dat
         conn.commit()
         print(f"✅ Personal data, {len(contacts)} emergency contacts, {len(assignments)} hospital assignments, and {len(absences)} absences saved.")
 
+        ### ✅ STEP 5: Save Hospitalization History
+        cursor.execute("DELETE FROM hospitalizations_history WHERE codOspite = ?", (personal_data.get("codOspite"),))
+        for entry in fetch_all_hospitalizations(personal_data.get("codOspite"), os.getenv("JWT_TOKEN")):
+            cursor.execute("""
+                INSERT INTO hospitalizations_history (
+                    id, codOspite, idProfilo, dal, al, idRicoveroCU, chiusoDa,
+                    chiusoData, statoArchiviazione, archiviazioneInit, nosologico, codicePsiche,
+                    autoSomministrazione, fineRiconciliazione, compilatoreChiusura, idSwEsterni,
+                    coRicoveroLight, nosologicoFormatted, checkNosologico, motivoDimissioneCu2,
+                    idRicoveroCollegato, idOrgProfilo, descrProfilo
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                entry.get("id"),
+                entry.get("codOspite"),
+                entry.get("idProfilo"),
+                entry.get("dal"),
+                entry.get("al"),
+                entry.get("idRicoveroCU"),
+                entry.get("chiusoDa"),
+                entry.get("chiusoData"),
+                entry.get("statoArchiviazione"),
+                entry.get("archiviazioneInit"),
+                entry.get("nosologico"),
+                entry.get("codicePsiche"),
+                entry.get("autoSomministrazione"),
+                entry.get("fineRiconciliazione"),
+                entry.get("compilatoreChiusura"),
+                entry.get("idSwEsterni"),
+                entry.get("coRicoveroLight"),
+                entry.get("nosologicoFormatted"),
+                entry.get("checkNosologico"),
+                entry.get("motivoDimissioneCu2"),
+                entry.get("idRicoveroCollegato"),
+                entry.get("idOrgProfilo"),
+                entry.get("descrProfilo")
+            ))
+
+
     except sqlite3.Error as e:
         print(f"🚨 SQLite Error: {e}")
 

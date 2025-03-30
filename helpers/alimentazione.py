@@ -25,56 +25,65 @@ def get_db_boundaries(id_ricovero):
     cursor.execute("SELECT MIN(data), MAX(data) FROM intake WHERE idRicovero = ?", (id_ricovero,))
     row = cursor.fetchone()
     conn.close()
+    min_date = datetime.fromisoformat(row[0]) if row[0] else None
+    max_date = datetime.fromisoformat(row[1]) if row[1] else None
+    return min_date, max_date
 
-    if row and row[0] and row[1]:
-        return datetime.fromisoformat(row[0]), datetime.fromisoformat(row[1])
-    return None, None
-
-def save_to_db(id_ricovero, records):
+def save_to_db(id_ricovero, entries):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    for entry in records:
+    for entry in entries:
         cursor.execute("""
-            INSERT OR IGNORE INTO intake (
-                id, idRicovero, data, tipo, tipoRecord, quantita,
-                compilatore, nominativo, compilatoreNominativo,
-                compilatoreFigProf, giornoDellaSettimana, note,
-                convalidato, nomeIcona, oraConvalida
+            INSERT OR REPLACE INTO intake (
+                id, idRicovero, data, tipo, quantita, tipoRecord, compilatore,
+                note, nominativo, compilatoreNominativo,
+                compilatoreFigProf, giornoDellaSettimana, convalidato,
+                nomeIcona, oraConvalida
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
-            entry.get("id"),
-            id_ricovero,
-            entry.get("data"),
-            entry.get("tipo"),
-            entry.get("tipoRecord"),
-            entry.get("quantita"),
-            entry.get("compilatore"),
-            entry.get("nominativo"),
-            entry.get("compilatoreNominativo"),
-            entry.get("compilatoreFigProf"),
-            entry.get("giornoDellaSettimana"),
-            entry.get("note"),
-            entry.get("convalidato"),
-            entry.get("nomeIcona"),
-            entry.get("oraConvalida")
+            entry["id"],
+            entry["idRicovero"],
+            entry["data"],
+            entry["tipo"],
+            entry["quantita"],
+            entry["tipoRecord"],
+            entry["compilatore"],
+            entry["note"],
+            entry["nominativo"],
+            entry["compilatoreNominativo"],
+            entry["compilatoreFigProf"],
+            entry["giornoDellaSettimana"],
+            entry["convalidato"],
+            entry["nomeIcona"],
+            entry["oraConvalida"]
         ))
     conn.commit()
     conn.close()
-def fetch_alimentazione(id_ricovero, jwt_token, start_date=None, infinite=True):
+
+def fetch_alimentazione(id_ricovero, jwt_token, start_date=None, infinite=True, skip_partial_check=False):
     now = datetime.now()
     min_saved_date, max_saved_date = get_db_boundaries(id_ricovero)
 
+    min_saved_date, max_saved_date = get_db_boundaries(id_ricovero)
+
     if start_date:
-        ref_date = datetime.fromisoformat(start_date)
+        ref_date = start_date if isinstance(start_date, datetime) else datetime.fromisoformat(start_date)
         print(f"📅 Resuming from provided start: {ref_date}")
     else:
-        ref_date = min_saved_date if min_saved_date else now
+        if min_saved_date is None:
+            print("⚠️ No existing records found for this ricovero. Skipping.")
+            return 0
+        ref_date = min_saved_date
         print(f"📂 Resuming from oldest saved date: {ref_date}")
 
     total_saved = 0
+
+    extra_update_done = False
+
     while True:
-        week_monday = get_monday(ref_date)
-        print(f"📆 Downloading week starting {week_monday.date()}:")
+        week_start = get_monday(ref_date)
+        week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
+        print(f"📆 Downloading week starting {week_start.date()}:")
 
         headers = {
             "CBA-JWT": f"Bearer {jwt_token}",
@@ -93,8 +102,8 @@ def fetch_alimentazione(id_ricovero, jwt_token, start_date=None, infinite=True):
             "group": '{"property": "giornoDellaSettimana", "direction": "ASC"}'
         }
 
-        print(f"📡 API Call: {BASE_URL} → {params['data']}")
-        response = requests.get(BASE_URL, headers=headers, params=params, verify=False)
+        print(f"📡 API Call: {ALIM_URL} → {params['data']}")
+        response = requests.get(ALIM_URL, headers=headers, params=params, verify=False)
         response.raise_for_status()
         json_data = response.json()
         entries = json_data.get("data", [])
@@ -103,31 +112,48 @@ def fetch_alimentazione(id_ricovero, jwt_token, start_date=None, infinite=True):
             print("🛑 No data returned for this week.")
             break
 
-        # Stop condition: all ids < 0
+        # Filter out placeholder entries and future-dated entries
+        valid_entries = [
+            entry for entry in entries
+            if parse_date(entry) <= now and entry.get("id", 0) > 0
+        ]
+
         all_negative_ids = all(entry.get("id", 1) < 0 for entry in entries)
         if all_negative_ids:
             print("🛑 Week is invalid (all IDs < 0). Stopping.")
             break
 
-        # Filter: discard any entries from the future
-        valid_entries = []
-        for entry in entries:
-            entry_date = parse_date(entry)
-            if entry_date > now:
-                print(f"⚠️ Skipping future record: {entry_date}")
-                continue
-            valid_entries.append(entry)
+        # Check if this week is already fully saved in original DB state
+        if not infinite:
+            # Single week scrape mode, exit after one
+            print("☑️ One-week scrape done (non-infinite mode).")
+            break
+
+        if not valid_entries:
+            print("🛑 Week is empty. Stopping.")
+            break
 
         save_to_db(id_ricovero, valid_entries)
         print(f"✅ {len(valid_entries)} entries saved.")
         total_saved += len(valid_entries)
 
+        # Exit condition for non-infinite mode
         if not infinite:
             print("☑️ One-week scrape done (non-infinite mode).")
             break
 
-        # Advance to previous week
+        if not skip_partial_check and min_saved_date and week_start <= max_saved_date and week_end >= min_saved_date and not extra_update_done:
+            print("⚠️ Week already partially saved (based on original DB scan). Will update this and go one more week.")
+            extra_update_done = True
+            ref_date -= timedelta(days=7)
+            continue
+
+        if not skip_partial_check and extra_update_done:
+            print("🛑 One extra update done after partial week. Stopping.")
+            break
+
         ref_date -= timedelta(days=7)
+
 
     return total_saved
 

@@ -130,6 +130,10 @@ def fetch_contenzioni(patient_id, patient_name, jwt_token):
         print(f"⚠️ Error fetching contenzioni list! Status: {response.status_code}")
         return []
 
+    if not all_contenzioni:
+        print("⚠️ No contenzioni found.")
+        return []
+
     # 🔄 Keep fetching previous records until `first == "T"`
     while True:
         last = all_contenzioni[-1]

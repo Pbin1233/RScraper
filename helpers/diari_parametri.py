@@ -3,6 +3,8 @@ import json
 import time
 from datetime import datetime
 import sqlite3
+from bs4 import BeautifulSoup
+import re
 
 # API Endpoint for alternative diary retrieval
 ALTERNATIVE_DIARIO_URL = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/portlet/diarioparametri/get"
@@ -126,7 +128,7 @@ def save_data(patient_id, entries, is_diary):
     for entry in entries:
         if is_diary:
             diary_type = entry.get("idTipoDiario")
-            table_name = diary_types.get(diary_type, "diario_medico")  # ✅ correct mapping
+            table_name = diary_types.get(diary_type, "diary")  # ✅ correct mapping
 
             query = f"""
             INSERT OR REPLACE INTO {table_name} (
@@ -135,10 +137,16 @@ def save_data(patient_id, entries, is_diary):
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
             """
 
+            # Safely extract clean text from testoDiario HTML
+            raw_html = entry.get("testoDiario", "")
+            clean_text = BeautifulSoup(raw_html, "html.parser").get_text(separator="\n", strip=True)
+            clean_text = re.sub(r'\xa0', ' ', clean_text)  # Replace non-breaking space
+            clean_text = BeautifulSoup(clean_text, "html.parser").get_text(separator="\n", strip=True)
+
             values = (
                 entry["id"], patient_id, entry["idRicovero"], entry["compilatoreNominativo"],
                 entry["compilatoreFigProf"], entry["tipo"], entry["nomeForm"], entry["dataOra"],
-                entry["testoDiario"], entry["coloreS2"], entry["coloreLabel"], entry.get("tipologia")  # ✅ Include tipologia
+                clean_text, entry["coloreS2"], entry["coloreLabel"], entry.get("tipologia")  # ✅ Include tipologia
             )
 
         else:

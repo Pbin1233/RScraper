@@ -64,6 +64,10 @@ def fetch_esame_obiettivo(patient_id, patient_name, jwt_token):
                 all_testate.append(d)
                 known_ids.add(d["id"])
 
+    if not all_testate:
+        print("⚠️ No esame_obiettivo entries found.")
+        return []
+
     while True and all_testate:
         last = all_testate[-1]
         params_prev = {
@@ -285,6 +289,10 @@ def fetch_esame_neurologico(patient_id, patient_name, jwt_token):
             if d["id"] not in known_ids:
                 all_testate.append(d)
                 known_ids.add(d["id"])
+
+    if not all_testate:
+        print("⚠️ No esame_neurologico entries found.")
+        return []
 
     while True:
         last = all_testate[-1]

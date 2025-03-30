@@ -34,13 +34,15 @@ def fetch_painad_details(test_id, jwt_token):
     }
 
     response = requests.get(url, headers=headers, params=params, verify=False)
-    print(f"📡 Fetching PAINAD test ID {test_id}: {response.url}")
+    print(f"📡 Fetching PAINAD test ID {test_id}")
 
     if response.status_code == 200:
         try:
             return response.json().get("data", {})
         except Exception as e:
             print(f"⚠️ Error parsing PAINAD ID {test_id}: {e}")
+    elif response.status_code == 401:
+        raise requests.exceptions.HTTPError(response=response)
     else:
         print(f"⚠️ Error fetching PAINAD details for ID {test_id}: Status {response.status_code}")
     return None
@@ -81,6 +83,10 @@ def fetch_painad(patient_id, patient_name, jwt_token):
             if d["id"] not in known_ids:
                 all_testate.append(d)
                 known_ids.add(d["id"])
+
+    if not all_testate:
+        print("⚠️ No PAINAD entries found.")
+        return []
 
     while True:
         last = all_testate[-1]

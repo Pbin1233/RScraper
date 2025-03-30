@@ -194,6 +194,10 @@ def fetch_lesioni(patient_id, patient_name, jwt_token):
         print(f"⚠️ Error fetching lesioni list! Status: {response.status_code}")
         return []
 
+    if not all_lesioni:
+        print("⚠️ No lesioni found.")
+        return []
+
     # 🔄 Keep fetching previous records until `first == "T"`
     while True:
         last = all_lesioni[-1]

@@ -142,7 +142,7 @@ def main():
 
             if "4" in selected_data:
                 print("📡 Fetching alimentazione/idratazione...")
-                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, jwt_token)
+                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, infinite=True, skip_partial_check=True)
                 print(f"✅ {intake_data} records saved.")
     
             if "5" in selected_data:
@@ -171,7 +171,7 @@ def main():
                     print("⚠️ No lesioni found.")
 
             if "9" in selected_data:
-                print("📡 Fetching PI (Piani Individualizzati)...")
+                print("📡 Fetching PI (Piani Individuali)...")
                 pi_data = safe_fetch(pi_pai.fetch_pi, selected_id_ricovero, selected_patient['nominativo'])
                 if pi_data:
                     print("✅ PI saved.")
@@ -258,8 +258,8 @@ def main():
 
             if "18" in selected_data:
                 print("📡 Fetching alimentazione/idratazione from default start...")
-                start_date = get_default_start_date(selected_patient["codOspite"], selected_id_ricovero, jwt_token)
-                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, jwt_token, start_date=start_date, infinite=False)
+                start_date = safe_fetch(get_default_start_date, selected_patient["codOspite"], selected_id_ricovero)
+                intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, start_date=start_date, infinite=True, skip_partial_check=False)
                 print(f"✅ {intake_data} records saved.")
 
         # Fetch anagrafica only once — it’s not per ricovero

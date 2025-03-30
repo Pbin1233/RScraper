@@ -24,12 +24,15 @@ def fetch_tinetti_details(test_id, jwt_token):
     }
 
     response = requests.get(url, headers=headers, params=params, verify=False)
-    print(f"📡 Fetching Tinetti ID {test_id}: {response.url}")
+    print(f"📡 Fetching Tinetti ID {test_id}")
     if response.status_code == 200:
         return response.json().get("data", {})
+    elif response.status_code == 401:
+        raise requests.exceptions.HTTPError(response=response)
     else:
         print(f"⚠️ Failed to fetch Tinetti ID {test_id}: {response.status_code}")
         return None
+
 
 def save_tinetti_data(patient_id, patient_name, testate_data, details_map):
     conn = sqlite3.connect("borromea.db")
@@ -158,6 +161,10 @@ def fetch_tinetti(patient_id, patient_name, jwt_token):
             if d["id"] not in known_ids:
                 all_testate.append(d)
                 known_ids.add(d["id"])
+
+    if not all_testate:
+        print("⚠️ No Tinetti entries found.")
+        return []
 
     while True and all_testate:
         last = all_testate[-1]

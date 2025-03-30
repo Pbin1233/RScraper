@@ -161,8 +161,6 @@ def fetch_falls(patient_id, patient_name, jwt_token):
         headers["CBA-JWT"] = f"Bearer {jwt_token}"
         response = requests.get(FALLS_LIST_URL, headers=headers, params=params_list, verify=False)
 
-    print(f"📡 API Request Sent: {response.url}")
-
     if response.status_code == 200:
         data = response.json()
         if "data" in data and data["data"]:
@@ -262,7 +260,6 @@ def fetch_fall_details(fall_id, jwt_token):
 
     try:
         detailed = response.json()
-        print(f"📋 Detailed Report for Fall ID {fall_id}: {json.dumps(detailed, indent=4)}")
         return detailed  # Return data instead of just printing
     except Exception as e:
         print(f"⚠️ Error parsing detailed response for Fall ID {fall_id}: {e}")
