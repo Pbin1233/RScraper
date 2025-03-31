@@ -19,9 +19,11 @@ def main():
     """Main execution flow for patient data retrieval and analysis."""
     print("🔄 Automating login and data retrieval...")
 
-    jwt_token = get_jwt_token_selenium()
+    jwt_token, driver = get_jwt_token_selenium(keep_browser_open=True)
     if not jwt_token:
         print("❌ Could not retrieve JWT token. Exiting.")
+        if driver:
+            driver.quit()
         return
 
     print(f"🔑 Using JWT Token: {jwt_token[:50]}... (truncated)")
@@ -265,12 +267,14 @@ def main():
         # Fetch anagrafica only once — it’s not per ricovero
         if "6" in selected_data:
             print("📡 Fetching personal data...")
-            personal_data = safe_fetch(anagrafica.fetch_personal_data, selected_cod_ospite)
-            if personal_data:
-                anagrafica.save_personal_data(personal_data, selected_cod_ospite)
-                print("✅ Personal data saved.")
-            else:
-                print("⚠️ No personal data found.")
+            try:
+                personal_data = safe_fetch(anagrafica.fetch_personal_data, selected_cod_ospite)
+                if personal_data:
+                    print("✅ Personal data saved.")
+                else:
+                    print("⚠️ No personal data found.")
+            except Exception as e:
+                print(f"❌ Failed to fetch or save personal data: {e}")
 
         print("✅ Data collection complete.")
 

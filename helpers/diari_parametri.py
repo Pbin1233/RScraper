@@ -141,7 +141,6 @@ def save_data(patient_id, entries, is_diary):
             raw_html = entry.get("testoDiario", "")
             clean_text = BeautifulSoup(raw_html, "html.parser").get_text(separator="\n", strip=True)
             clean_text = re.sub(r'\xa0', ' ', clean_text)  # Replace non-breaking space
-            clean_text = BeautifulSoup(clean_text, "html.parser").get_text(separator="\n", strip=True)
 
             values = (
                 entry["id"], patient_id, entry["idRicovero"], entry["compilatoreNominativo"],
