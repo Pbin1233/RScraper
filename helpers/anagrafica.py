@@ -55,12 +55,20 @@ def fetch_all_hospitalizations(cod_ospite, jwt_token):
         "limit": 25
     }
 
+    print(f"📡 Requesting hospitalization data for codOspite {cod_ospite}")
+    print(f"🔐 Headers: {headers}")
+    print(f"📦 Params: {params}")
+
     response = requests.get(
         "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/ricoveri/search",
         headers=headers,
         params=params,
         verify=False
     )
+
+    print(f"📥 Response status code: {response.status_code}")
+    if response.status_code != 200:
+        print(f"🧾 Response content: {response.text}")
 
     if response.status_code == 401:
         print("🔄 Token expired during hospitalization fetch. Refreshing...")
@@ -73,12 +81,16 @@ def fetch_all_hospitalizations(cod_ospite, jwt_token):
             params=params,
             verify=False
         )
+        print(f"🔁 Retried fetch. Status: {response.status_code}")
 
     if response.status_code == 200:
-        return response.json().get("data", [])
+        data = response.json().get("data", [])
+        print(f"📊 Retrieved {len(data)} hospitalizations.")
+        return data
     else:
         print(f"⚠️ Error fetching hospitalizations: {response.status_code}")
         return []
+
 
 def fetch_additional_info(url, params, jwt_token):
     """Helper function to fetch additional data from an API endpoint with retry on token expiration."""
@@ -158,9 +170,11 @@ def fetch_personal_data(selected_cod_ospite, jwt_token):
     absences = absences_data if isinstance(absences_data, list) else []
 
     # Save to Database
-    save_personal_data(personal_data, address, hospital, residence, regional_data, contacts, assignments, absences)
+    save_personal_data(personal_data, address, hospital, residence, regional_data, contacts, assignments, absences, jwt_token)
 
-def save_personal_data(personal_data, address, hospital, residence, regional_data, contacts, assignments, absences):
+    return True 
+
+def save_personal_data(personal_data, address, hospital, residence, regional_data, contacts, assignments, absences, jwt_token):
     """Saves fetched personal data, emergency contacts, hospital assignments, and absences into SQLite database."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
@@ -330,45 +344,65 @@ def save_personal_data(personal_data, address, hospital, residence, regional_dat
         print(f"✅ Personal data, {len(contacts)} emergency contacts, {len(assignments)} hospital assignments, and {len(absences)} absences saved.")
 
         ### ✅ STEP 5: Save Hospitalization History
-        cursor.execute("DELETE FROM hospitalizations_history WHERE codOspite = ?", (personal_data.get("codOspite"),))
-        for entry in fetch_all_hospitalizations(personal_data.get("codOspite"), os.getenv("JWT_TOKEN")):
-            cursor.execute("""
-                INSERT INTO hospitalizations_history (
-                    id, codOspite, idProfilo, dal, al, idRicoveroCU, chiusoDa,
-                    chiusoData, statoArchiviazione, archiviazioneInit, nosologico, codicePsiche,
-                    autoSomministrazione, fineRiconciliazione, compilatoreChiusura, idSwEsterni,
-                    coRicoveroLight, nosologicoFormatted, checkNosologico, motivoDimissioneCu2,
-                    idRicoveroCollegato, idOrgProfilo, descrProfilo
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                entry.get("id"),
-                entry.get("codOspite"),
-                entry.get("idProfilo"),
-                entry.get("dal"),
-                entry.get("al"),
-                entry.get("idRicoveroCU"),
-                entry.get("chiusoDa"),
-                entry.get("chiusoData"),
-                entry.get("statoArchiviazione"),
-                entry.get("archiviazioneInit"),
-                entry.get("nosologico"),
-                entry.get("codicePsiche"),
-                entry.get("autoSomministrazione"),
-                entry.get("fineRiconciliazione"),
-                entry.get("compilatoreChiusura"),
-                entry.get("idSwEsterni"),
-                entry.get("coRicoveroLight"),
-                entry.get("nosologicoFormatted"),
-                entry.get("checkNosologico"),
-                entry.get("motivoDimissioneCu2"),
-                entry.get("idRicoveroCollegato"),
-                entry.get("idOrgProfilo"),
-                entry.get("descrProfilo")
-            ))
+        print("🧪 Fetching hospitalization history for saving...")
 
+        try:
+            hospitalization_history = fetch_all_hospitalizations(personal_data.get("codOspite"), jwt_token)
+            print(f"🧪 Entries fetched: {len(hospitalization_history)}")
 
-    except sqlite3.Error as e:
-        print(f"🚨 SQLite Error: {e}")
+            cursor.execute("DELETE FROM hospitalizations_history WHERE codOspite = ?", (personal_data.get("codOspite"),))
+
+            for entry in hospitalization_history:
+                print(f"📄 Entry ID: {entry.get('id')}")
+                print(f"📦 Full entry: {entry}")
+
+                cursor.execute("""
+                    INSERT INTO hospitalizations_history (
+                        id, codOspite, idProfilo, dal, al, idRicoveroCU, chiusoDa,
+                        chiusoData, statoArchiviazione, archiviazioneInit, nosologico, codicePsiche,
+                        autoSomministrazione, fineRiconciliazione, compilatoreChiusura, idSwEsterni,
+                        coRicoveroLight, nosologicoFormatted, checkNosologico, motivoDimissioneCu2,
+                        idRicoveroCollegato, idOrgProfilo, descrProfilo
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    entry.get("id"),
+                    entry.get("codOspite"),
+                    entry.get("idProfilo"),
+                    entry.get("dal"),
+                    entry.get("al"),
+                    entry.get("idRicoveroCU"),
+                    entry.get("chiusoDa"),
+                    entry.get("chiusoData"),
+                    entry.get("statoArchiviazione"),
+                    entry.get("archiviazioneInit"),
+                    entry.get("nosologico"),
+                    entry.get("codicePsiche"),
+                    entry.get("autoSomministrazione"),
+                    entry.get("fineRiconciliazione"),
+                    entry.get("compilatoreChiusura"),
+                    entry.get("idSwEsterni"),
+                    entry.get("coRicoveroLight"),
+                    entry.get("nosologicoFormatted"),
+                    entry.get("checkNosologico"),
+                    entry.get("motivoDimissioneCu2"),
+                    entry.get("idRicoveroCollegato"),
+                    entry.get("idOrgProfilo"),
+                    entry.get("descrProfilo")
+                ))
+
+                print(f"✅ Inserted hospitalization entry ID: {entry.get('id')}")
+
+            conn.commit()
+
+            cursor.execute("SELECT COUNT(*) FROM hospitalizations_history WHERE codOspite = ?", (personal_data.get("codOspite"),))
+            print(f"🧾 Hospitalizations in DB for {personal_data.get('codOspite')}: {cursor.fetchone()[0]}")
+
+        except Exception as e:
+            print(f"🚨 Error saving hospitalization history: {e}")
+
+    except Exception as e:
+        print(f"🚨 Unexpected Error: {e}")
+
 
     finally:
         conn.close()

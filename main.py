@@ -19,7 +19,7 @@ def main():
     """Main execution flow for patient data retrieval and analysis."""
     print("🔄 Automating login and data retrieval...")
 
-    jwt_token, driver = get_jwt_token_selenium(keep_browser_open=True)
+    jwt_token = get_jwt_token_selenium(keep_browser_open=False)
     if not jwt_token:
         print("❌ Could not retrieve JWT token. Exiting.")
         if driver:

@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS falls (
     dataUltimaCaduta TEXT,
     history TEXT,
     operatore INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -128,7 +128,7 @@ for diary_id, table_name in diary_types.items():
         coloreS2 TEXT,
         coloreLabel INTEGER,
         tipologia TEXT,  -- ✅ Added tipologia field
-        FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+        FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
     );
     """)
 
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS vitals (
     turno TEXT,
     tipologia TEXT,
     listIndex INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS medications (
     dosi TEXT,
     storico BOOLEAN DEFAULT 0,  -- 0 for active, 1 for historical
     isChiusa BOOLEAN DEFAULT 0,  -- Indicates if the therapy was closed
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS intake (
     hashAnnulla TEXT,
     deletedData TEXT,
     nominativo TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -284,7 +284,7 @@ CREATE TABLE IF NOT EXISTS personal_data (
     codiceAccoglienza TEXT, 
     codiceProfilo TEXT,    
 
-    -- Address & Residence (✅ Added `indirizzo` Here)
+    -- Address & Residence
     indirizzo TEXT,
     cap TEXT,
     comune_residenza TEXT,
@@ -308,7 +308,7 @@ CREATE TABLE IF NOT EXISTS personal_data (
     sosiaProfessione INTEGER,
     sosiaSituazionePens INTEGER,
     
-    FOREIGN KEY (codOspite) REFERENCES patients(idRicovero)
+    FOREIGN KEY (codOspite) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -374,7 +374,7 @@ CREATE TABLE IF NOT EXISTS hospitalizations_history (
     idProfilo INTEGER,
     dal TEXT,
     al TEXT,
-    idRicoveroCU INTEGER,
+    idRicoveroCU INTEGER UNIQUE,
     chiusoDa INTEGER,
     chiusoData TEXT,
     statoArchiviazione TEXT,
@@ -391,8 +391,7 @@ CREATE TABLE IF NOT EXISTS hospitalizations_history (
     motivoDimissioneCu2 TEXT,
     idRicoveroCollegato INTEGER,
     idOrgProfilo INTEGER,
-    descrProfilo TEXT,
-    FOREIGN KEY (codOspite) REFERENCES personal_data(codOspite)
+    descrProfilo TEXT
 );
 """)
 
@@ -438,7 +437,7 @@ CREATE TABLE IF NOT EXISTS contenzioni (
     agendaFunzione TEXT,
     fineMese TEXT,
     permanente TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -456,9 +455,9 @@ CREATE TABLE IF NOT EXISTS lesioni (
     dataRecenteDett TEXT,
     dataFineFormatted TEXT,
     dataFormatted TEXT,
-    idUltimoDett INTEGER,  -- ✅ NEW COLUMN
-    idUltimaMedicazioneV1 INTEGER,  -- ✅ NEW COLUMN
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    idUltimoDett INTEGER,
+    idUltimaMedicazioneV1 INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -546,7 +545,7 @@ CREATE TABLE IF NOT EXISTS pi (
     team TEXT,
     listaAree TEXT,
     areaDescriptions TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -570,7 +569,7 @@ CREATE TABLE IF NOT EXISTS pai (
     compilatoreNominativo TEXT,
     compilatoreFigProf TEXT,
     listaCompilatori TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -586,7 +585,7 @@ CREATE TABLE IF NOT EXISTS painad (
     punteggio INTEGER,
     punteggioMassimo INTEGER,
     domande TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -603,7 +602,7 @@ CREATE TABLE IF NOT EXISTS nrs (
     compilatore INTEGER,
     compilatoreNominativo TEXT,
     compilatoreFigProf TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -635,7 +634,7 @@ CREATE TABLE IF NOT EXISTS cirs (
     psichiatrico INTEGER,
     indiceComorbilita INTEGER,
     indiceSeverita REAL,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -658,7 +657,7 @@ CREATE TABLE IF NOT EXISTS esame_neurologico (
     tonoSX INTEGER,
     nominativo TEXT,
     note TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -727,7 +726,7 @@ CREATE TABLE esame_obiettivo (
     cmAnnessi TEXT,
     cmManifestazioni TEXT,
     note TEXT,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
 
@@ -753,7 +752,7 @@ CREATE TABLE IF NOT EXISTS barthel (
     scale INTEGER,
     deambulazione INTEGER,
     carrozzina INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 )
 """)
 
@@ -775,7 +774,7 @@ CREATE TABLE IF NOT EXISTS braden (
     mobilita INTEGER,
     nutrizione INTEGER,
     frizione_scivolamento INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 )
 """)
 
@@ -812,7 +811,7 @@ CREATE TABLE IF NOT EXISTS tinetti (
     eqGirarsi INTEGER,
     eqGirarsiStab INTEGER,
     eqSedersi INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 )
 """)
 
@@ -832,7 +831,7 @@ CREATE TABLE IF NOT EXISTS conley (
     domanda4 INTEGER,
     domanda5 INTEGER,
     domanda6 INTEGER,
-    FOREIGN KEY (patient_id) REFERENCES patients(idRicovero)
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 )
 """)
 

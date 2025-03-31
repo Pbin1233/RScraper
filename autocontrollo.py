@@ -16,7 +16,21 @@ cursor.execute("""
 patient_ids = [row[0] for row in cursor.fetchall()]
 
 for patient_id in patient_ids:
-    print(f"\n📌 Checking patient_id: {patient_id}")
+    cursor.execute("""
+        SELECT p.nome, p.cognome
+        FROM personal_data p
+        JOIN hospitalizations_history h ON p.codOspite = h.codOspite
+        WHERE h.idRicoveroCU = ?
+        LIMIT 1
+    """, (patient_id,))
+    
+    result = cursor.fetchone()
+    if result:
+        nome, cognome = result
+        print(f"\n📌 Checking: {cognome.upper()} {nome.upper()} (idRicoveroCU: {patient_id})")
+    else:
+        print(f"\n📌 Checking patient_id: {patient_id} (name not found)")
+
 
     # --- PAI ---
     cursor.execute("SELECT DISTINCT data FROM pai WHERE patient_id = ?", (patient_id,))
