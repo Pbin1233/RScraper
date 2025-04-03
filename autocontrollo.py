@@ -9,7 +9,7 @@ cursor = conn.cursor()
 MAX_DIFF_DAYS = 30.5*6+14  # ~6 months
 DO_CHECK_generale_1 = True    # Interval between PAI/PI
 DO_CHECK_generale_2_1 = True    # First PAI/PI within 30 days of DAL
-VERBOSE = True  # Set to True to show successful check results
+VERBOSE = False  # Set to True to show successful check results
 
 # Get all patient IDs that have both PAI and PI
 cursor.execute("""
@@ -68,31 +68,6 @@ for patient_id in patient_ids:
         for row in cursor.fetchall() if row[0]
     ])
 
-    # === CHECK Cadute 1.1 ===
-    if pai_dates:
-        passed_all = True
-        for pai_date in pai_dates:
-            start_window = pai_date - timedelta(days=10)
-            end_window = pai_date
-
-            cursor.execute("""
-                SELECT COUNT(*) FROM tinetti
-                WHERE patient_id = ? AND data BETWEEN ? AND ?
-            """, (patient_id, start_window.strftime("%Y-%m-%d %H:%M:%S"), end_window.strftime("%Y-%m-%d %H:%M:%S")))
-            tinetti_count = cursor.fetchone()[0]
-
-            cursor.execute("""
-                SELECT COUNT(*) FROM conley
-                WHERE patient_id = ? AND data BETWEEN ? AND ?
-            """, (patient_id, start_window.strftime("%Y-%m-%d %H:%M:%S"), end_window.strftime("%Y-%m-%d %H:%M:%S")))
-            conley_count = cursor.fetchone()[0]
-
-            if tinetti_count == 0 and conley_count == 0:
-                print(f"❌ [Check Cadute 1.1] No Tinetti or Conley for the PAI on {pai_date.date()}")
-                any_issues = True
-                passed_all = False
-        if VERBOSE and passed_all:
-            print("✅ [Check Cadute 1.1] At least one Tinetti or Conley found for all PAI")
 
 
     # === CHECK generale_2.1 ===
@@ -115,6 +90,7 @@ for patient_id in patient_ids:
                     passed_all = False
             if VERBOSE and passed_all:
                 print("✅ [Check Generale 2.1] First PAI and PI within 30 days of DAL")
+
 
     # === CHECK Cadute 1.1 ===
     if pai_dates:

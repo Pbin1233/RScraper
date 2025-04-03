@@ -8,7 +8,7 @@ from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
 from helpers.anagrafica import fetch_all_hospitalizations
 from helpers.alimentazione import get_default_start_date
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, must, mna
 import urllib3
 
 load_dotenv()
@@ -97,7 +97,9 @@ def main():
             "15": "Braden",
             "16": "Tinetti",
             "17": "Conley",
-            "18": "Alimentazione/Idratazione (recent)",
+            "18": "MUST",
+            "19": "MNA",
+            "20": "Alimentazione/Idratazione (recent)",
             "A": "all"
         }
 
@@ -259,6 +261,23 @@ def main():
                     print("⚠️ No Conley data found.")
 
             if "18" in selected_data:
+                print("📡 Fetching MUST...")
+                must_data = safe_fetch(must.fetch_must, selected_id_ricovero, selected_patient['nominativo'])
+                if must_data:
+                    print("✅ MUST data saved.")
+                else:
+                    print("⚠️ No MUST data found.")
+
+            if "19" in selected_data:
+                print("📡 Fetching MNA...")
+                mna_data = safe_fetch(mna.fetch_mna, selected_id_ricovero, selected_patient['nominativo'])
+                if mna_data:
+                    print("✅ MNA data saved.")
+                else:
+                    print("⚠️ No MNA data found.")
+
+
+            if "20" in selected_data:
                 print("📡 Fetching alimentazione/idratazione from default start...")
                 start_date = safe_fetch(get_default_start_date, selected_patient["codOspite"], selected_id_ricovero)
                 intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, start_date=start_date, infinite=True, skip_partial_check=False)

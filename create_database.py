@@ -639,6 +639,63 @@ CREATE TABLE IF NOT EXISTS cirs (
 """)
 
 cursor.execute("""
+CREATE TABLE IF NOT EXISTS must (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    step1 INTEGER,
+    step2 INTEGER,
+    step3 INTEGER,
+    punteggio INTEGER,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS mna (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    scadenza INTEGER,
+    convertito TEXT,
+    bmi REAL,
+    mac REAL,
+    cc REAL,
+    perditaPeso INTEGER,
+    viveIndipendentemente INTEGER,
+    piuDi3Farmaci INTEGER,
+    stressPsicologici INTEGER,
+    mobilita INTEGER,
+    problemiNeuro INTEGER,
+    piagheDecubito INTEGER,
+    pastiCompleti INTEGER,
+    consuma INTEGER,
+    consumaFruttaVerdura INTEGER,
+    riduzioneAppetito INTEGER,
+    liquidiAssunti INTEGER,
+    comeMangia INTEGER,
+    ritieneDiAvereProb INTEGER,
+    statoSalute INTEGER,
+    consuma1 TEXT,
+    consuma2 TEXT,
+    consuma3 TEXT,
+    peso REAL,
+    altezza REAL,
+    bmiCalcolata REAL,
+    dataBmi TEXT,
+    note TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS esame_neurologico (
     id INTEGER PRIMARY KEY,
     patient_id INTEGER,
