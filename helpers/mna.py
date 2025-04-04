@@ -44,7 +44,7 @@ def save_mna_data(patient_id, testate_data, details_map):
                 stressPsicologici, mobilita, problemiNeuro, piagheDecubito, pastiCompleti, consuma,
                 consumaFruttaVerdura, riduzioneAppetito, liquidiAssunti, comeMangia, ritieneDiAvereProb,
                 statoSalute, consuma1, consuma2, consuma3, peso, altezza, bmiCalcolata, dataBmi, note
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             d.get("id"),
             patient_id,

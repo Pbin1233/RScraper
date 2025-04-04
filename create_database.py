@@ -719,7 +719,7 @@ CREATE TABLE IF NOT EXISTS esame_neurologico (
 """)
 
 cursor.execute("""
-CREATE TABLE esame_obiettivo (
+CREATE TABLE IF NOT EXISTS esame_obiettivo (
     id INTEGER PRIMARY KEY,
     patient_id INTEGER,
     data TEXT,
@@ -786,6 +786,118 @@ CREATE TABLE esame_obiettivo (
     FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS schede_biografiche (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    idRicovero INTEGER,
+    codArea INTEGER,
+    descrizione TEXT,
+    note TEXT,
+    coefficiente INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    ordinamento INTEGER,
+    tipoBlocco TEXT,
+    permessiAnnulla TEXT,
+    bozza BOOLEAN,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS cartella (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    idRicovero INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    peso REAL,
+    statoCoscienza INTEGER,
+    respiro TEXT,
+    abitudiniAlcool TEXT,
+    abitudiniFumo TEXT,
+    diuresiRegolare TEXT,
+    ausiliPannolone TEXT,
+    ausiliUrocontrol TEXT,
+    ausiliCatetere TEXT,
+    mobilizzazione TEXT,
+    protesi TEXT,
+    ausilio1 TEXT,
+    ausilio2 TEXT,
+    tipoAusili INTEGER,
+    igienePersonale TEXT,
+    visoManiBocca TEXT,
+    intima TEXT,
+    bagnoDoccia TEXT,
+    vestirsi TEXT,
+    farmaciSonno TEXT,
+    dolore TEXT,
+    decubito TEXT,
+    ausiliMaterasso TEXT,
+    ausiliCuscini TEXT,
+    udito TEXT,
+    linguaggio TEXT,
+    orientamento TEXT,
+    comportamento TEXT,
+    note TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS pairaccoltadati (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    idRicovero INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    pressioneMax INTEGER,
+    pressioneMin INTEGER,
+    frequenzaCardiaca INTEGER,
+    temperatura REAL,
+    edemi TEXT,
+    respiro TEXT,
+    peso REAL,
+    altezza REAL,
+    presenzaDoloreMovimento TEXT,
+    utilizzaProtesiPresidi TEXT,
+    problemiMinzione TEXT,
+    problemiAlvo TEXT,
+    personaCollabora TEXT,
+    siEsprimeChiaramente TEXT,
+    occhiali TEXT,
+    problemiUdito TEXT,
+    conosceSistemiSicurezza TEXT,
+    microclimaAutonomo TEXT,
+    rischioCadute TEXT,
+    rischioInfezione TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS fisioterapia (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    idRicovero INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    listaModelli TEXT,  -- serialized JSON: lstModelli with diagnosi, patologie, postura, ecc.
+    agendaFunzione TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS barthel (
@@ -892,6 +1004,26 @@ CREATE TABLE IF NOT EXISTS conley (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS attivita (
+    id INTEGER PRIMARY KEY,
+    idPianificazione INTEGER,
+    idAttivita INTEGER,
+    title TEXT,
+    description TEXT,
+    data TEXT,
+    dalle TEXT,
+    alle TEXT,
+    color TEXT,
+    compilatore INTEGER,
+    idRicovero INTEGER,
+    codImg INTEGER,
+    allDay BOOLEAN,
+    calendarId INTEGER,
+    startDate TEXT,
+    endDate TEXT
+)
+""")
 
 # Save and close
 conn.commit()

@@ -3,11 +3,36 @@ import requests
 import time
 from datetime import datetime, timezone
 
+HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json"
+}
+
 def get_timestamp():
     return str(int(time.time() * 1000))
 
 def get_current_time():
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
+def fetch_schede_biografiche(id_ricovero):
+    url = f"https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/anamnesi/schedebiografiche/list?_dc=1743788002330&idRicovero={id_ricovero}&attuali=T&page=1&start=0&limit=25"
+    response = requests.get(url, headers=HEADERS)
+    return response.json()["data"]
+
+def fetch_cartella(id_cartella):
+    url = f"https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/ce/cartella/get?_dc=1743788206888&id={id_cartella}&page=1&start=0&limit=25"
+    response = requests.get(url, headers=HEADERS)
+    return response.json()["data"]
+
+def fetch_pairaccoltadati(id_pair):
+    url = f"https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/ce/pairaccoltadati/get?_dc=1743788267648&id={id_pair}&page=1&start=0&limit=25"
+    response = requests.get(url, headers=HEADERS)
+    return response.json()["data"]
+
+def fetch_fisioterapia(id_sfkt):
+    url = f"https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/fisioterapia/sfkt/get?_dc=1743788307966&id={id_sfkt}&page=1&start=0&limit=25"
+    response = requests.get(url, headers=HEADERS)
+    return response.json()["data"]
 
 def fetch_esame_obiettivo_details(test_id, jwt_token):
     url = "https://pvc03.cbacloud.it:4445/cba/css/cs/ws/anamnesi/esameobiettivo/get"

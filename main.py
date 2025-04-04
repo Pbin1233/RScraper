@@ -3,12 +3,13 @@ import json
 import time
 import os
 import sqlite3
+from datetime import datetime
 from dotenv import load_dotenv
 from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
 from helpers.anagrafica import fetch_all_hospitalizations
 from helpers.alimentazione import get_default_start_date
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, must, mna
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, must, mna, attivita
 import urllib3
 
 load_dotenv()
@@ -40,13 +41,23 @@ def main():
                 return func(*args, jwt_token=jwt_token, **kwargs)
             else:
                 raise
-
-    patients = fetch_patient_list(jwt_token)
+        except requests.exceptions.ConnectionError as e:
+            print(f"🚫 Connection failed: {e}")
+            return None
+    
+    patients = safe_fetch(fetch_patient_list)
     if not patients:
         print("⚠️ No patients found.")
         return
 
     while True:
+        if not patients:
+            print("⚠️ No valid patient list available. Trying to refresh...")
+            patients = safe_fetch(fetch_patient_list)
+            if not patients:
+                print("❌ Unable to fetch patient list. Please check your connection or credentials.")
+                return
+
         print("\n📌 Please choose a patient by number:")
         for idx, patient in enumerate(patients, start=1):
             print(f"{idx}. {patient['nominativo']} (idRicovero: {patient['idRicovero']}, codOspite: {patient['codOspite']})")
@@ -60,7 +71,9 @@ def main():
 
         if choice.lower() == 'r':
             print("🔄 Refreshing patient list...")
-            patients = fetch_patient_list(jwt_token)
+            patients = safe_fetch(fetch_patient_list)
+            if not patients:
+                print("❌ Unable to refresh patient list. Please try again or restart.")
             continue
 
         if not choice.isdigit() or not (1 <= int(choice) <= len(patients)):
@@ -100,7 +113,8 @@ def main():
             "18": "MUST",
             "19": "MNA",
             "20": "Alimentazione/Idratazione (recent)",
-            "A": "all"
+            "21": "Attività",
+            "A": "all",
         }
 
         print("\n📌 Select data categories to scrape:")
@@ -214,19 +228,33 @@ def main():
                     print("⚠️ No CIRS data found.")
 
             if "13" in selected_data:
-                print("📡 Fetching Esame Neurologico...")
-                neuro_data = safe_fetch(ingresso.fetch_esame_neurologico, selected_id_ricovero, selected_patient['nominativo'])
-                if neuro_data:
-                    print("✅ Esame Neurologico saved.")
+                print("📡 Fetching Schede Biografiche...")
+                schede_data = safe_fetch(ingresso.fetch_schede_biografiche, selected_id_ricovero)
+                if schede_data:
+                    print(f"✅ {len(schede_data)} schede biografiche fetched.")
                 else:
-                    print("⚠️ No Esame Neurologico found.")
+                    print("⚠️ No Schede Biografiche found.")
 
-                print("📡 Fetching Esame Obiettivo...")
-                obiettivo_data = safe_fetch(ingresso.fetch_esame_obiettivo, selected_id_ricovero, selected_patient['nominativo'])
-                if obiettivo_data:
-                    print("✅ Esame Obiettivo saved.")
+                print("📡 Fetching Cartella...")
+                cartella_data = safe_fetch(ingresso.fetch_cartella, selected_id_ricovero)
+                if cartella_data:
+                    print("✅ Cartella data fetched.")
                 else:
-                    print("⚠️ No Esame Obiettivo found.")
+                    print("⚠️ No Cartella data found.")
+
+                print("📡 Fetching Pair Accolta Dati...")
+                pair_data = safe_fetch(ingresso.fetch_pairaccoltadati, selected_id_ricovero)
+                if pair_data:
+                    print("✅ Pair Accolta Dati fetched.")
+                else:
+                    print("⚠️ No Pair Accolta Dati found.")
+
+                print("📡 Fetching Fisioterapia...")
+                fkt_data = safe_fetch(ingresso.fetch_fisioterapia, selected_id_ricovero)
+                if fkt_data:
+                    print("✅ Fisioterapia data fetched.")
+                else:
+                    print("⚠️ No Fisioterapia data found.")
 
             if "14" in selected_data:
                 print("📡 Fetching Barthel...")
@@ -282,6 +310,17 @@ def main():
                 start_date = safe_fetch(get_default_start_date, selected_patient["codOspite"], selected_id_ricovero)
                 intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, start_date=start_date, infinite=True, skip_partial_check=False)
                 print(f"✅ {intake_data} records saved.")
+
+            if "21" in selected_data:
+                print("📡 Fetching attività...")
+                ricovero_data = next((h for h in hospitalizations if h["id"] == selected_id_ricovero), None)
+                if ricovero_data:
+                    ricovero_start = datetime.fromisoformat(ricovero_data["dal"])
+                    ricovero_end = datetime.fromisoformat(ricovero_data["al"]) if ricovero_data.get("al") else None
+                    total_atti = safe_fetch(attivita.fetch_attivita, selected_id_ricovero, ricovero_start=ricovero_start, ricovero_end=ricovero_end)
+                    print(f"✅ {total_atti} attività entries saved.")
+                else:
+                    print("⚠️ Ricovero info not found.")
 
         # Fetch anagrafica only once — it’s not per ricovero
         if "6" in selected_data:

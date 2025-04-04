@@ -57,7 +57,8 @@ def fetch_patient_list(jwt_token):
 
         if response.status_code != 200:
             print(f"❌ Failed to retrieve patient data! Status Code: {response.status_code}")
-            return None
+            response.raise_for_status()  # 🔥 Raise HTTPError so safe_fetch can catch and refresh
+
 
         result = response.json()
 
