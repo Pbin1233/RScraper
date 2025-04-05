@@ -9,25 +9,31 @@ cursor = conn.cursor()
 MAX_DIFF_DAYS = 30.5*6+14  # ~6 months
 DO_CHECK_generale_1 = True    # Interval between PAI/PI
 DO_CHECK_generale_2_1 = True    # First PAI/PI within 30 days of DAL
-VERBOSE = False  # Set to True to show successful check results
+VERBOSE = True  # Set to True to show successful check results
 
-# Get all patient IDs that have both PAI and PI
-cursor.execute("""
-    SELECT DISTINCT pai.patient_id
-    FROM pai
-    INNER JOIN pi ON pai.patient_id = pi.patient_id
-""")
-patient_ids = [row[0] for row in cursor.fetchall()]
+# === SETUP: Loop through ospiti and ricoveri ===
 
-for patient_id in patient_ids:
-    # Get hospitalization start (dal) and codOspite
+# Get all unique patients
+cursor.execute("SELECT DISTINCT codOspite FROM personal_data")
+ospiti = [row[0] for row in cursor.fetchall()]
+
+for cod_ospite in ospiti:
+    # For each ospite, get all ricoveri with name and surname
     cursor.execute("""
-        SELECT h.dal, h.codOspite
-        FROM hospitalizations_history h
-        WHERE h.id = ?
-        LIMIT 1
-    """, (patient_id,))
-    row = cursor.fetchone()
+        SELECT ricovero_id, nome, cognome
+        FROM personal_data
+        WHERE codOspite = ? AND ricovero_id IS NOT NULL
+    """, (cod_ospite,))
+    ricoveri = cursor.fetchall()
+
+    for ricovero_id, nome, cognome in ricoveri:
+        # Print the analysis header for this specific ricovero
+        print(f"\n📌 Checking: {cognome.upper()} {nome} (idRicoveroCU: {ricovero_id})")
+
+        # === All the following checks will use this ricovero_id ===
+        # You can now start with CHECK Generale 1 here.
+
+    # === CHECK generale_1 ===
 
     if not row:
         print(f"\n📌 Checking patient_id: {patient_id} (not found in hospitalizations_history)")
@@ -117,6 +123,85 @@ for patient_id in patient_ids:
                 passed_all = False
         if VERBOSE and passed_all:
             print("✅ [Check Cadute 1.1] At least one Tinetti or Conley found for all PAI")
+
+    # === CHECK Contenzioni 2.1 ===
+    DEBUG = True
+
+    def normalize_code(code):
+        return code.replace(";", "").strip()
+
+    # Load mapping of code → description
+    cursor.execute("SELECT inputValueInt, descrizione FROM dispositivi_contenzione")
+    contenzione_map = {str(row[0]): row[1] for row in cursor.fetchall()}
+    if DEBUG:
+        print("DEBUG: Mapping of codes to description:", contenzione_map)
+
+    cursor.execute("SELECT DISTINCT patient_id FROM contenzioni")
+    patient_ids_contenzioni = [row[0] for row in cursor.fetchall()]
+    if DEBUG:
+        print("DEBUG: Found patient_ids in contenzioni:", patient_ids_contenzioni)
+
+    for patient_id in patient_ids_contenzioni:
+        # Get ricovero_id from personal_data
+        cursor.execute("SELECT ricovero_id FROM personal_data WHERE id = ?", (patient_id,))
+        pd_row = cursor.fetchone()
+        if not pd_row:
+            if DEBUG:
+                print(f"DEBUG: No ricovero_id found in personal_data for patient {patient_id}")
+            continue
+        ricovero_id = pd_row[0]
+        if DEBUG:
+            print(f"DEBUG: Processing patient {patient_id} (ricovero_id = {ricovero_id})")
+
+        # Load contenzioni for this patient
+        cursor.execute("""
+            SELECT dataInizio, mezziContenzione
+            FROM contenzioni
+            WHERE patient_id = ?
+        """, (patient_id,))
+        rows = cursor.fetchall()
+        if DEBUG:
+            print(f"DEBUG: Found {len(rows)} contenzioni rows for patient {patient_id}")
+
+        first_use_by_type = {}
+        for data_inizio, mezzi in rows:
+            if not data_inizio or not mezzi:
+                continue
+            if DEBUG:
+                print(f"DEBUG: Processing row: dataInizio = {data_inizio}, mezziContenzione = {mezzi}")
+            try:
+                dt = datetime.strptime(data_inizio, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                dt = datetime.strptime(data_inizio, "%Y-%m-%d")
+            codes = [normalize_code(c) for c in mezzi.split(",") if normalize_code(c)]
+            if DEBUG:
+                print("DEBUG: Normalized codes from row:", codes)
+            for code in codes:
+                if code not in first_use_by_type or dt < first_use_by_type[code]:
+                    first_use_by_type[code] = dt
+
+        if DEBUG:
+            readable_first_use = {k: v.strftime("%Y-%m-%d") for k, v in first_use_by_type.items()}
+            print("DEBUG: First use by type for patient", patient_id, ":", readable_first_use)
+
+        for code, dt in sorted(first_use_by_type.items(), key=lambda x: x[1]):
+            data_str = dt.strftime("%Y-%m-%d")
+            desc = contenzione_map.get(code, f"(Unknown {code})")
+            if DEBUG:
+                print(f"DEBUG: Checking code {code} ({desc}) with earliest date {data_str}")
+
+            cursor.execute("""
+                SELECT testoDiario FROM diario_medico
+                WHERE idRicovero = ? AND DATE(dataOra) = ?
+            """, (ricovero_id, data_str))
+            diario_entries = [r[0] for r in cursor.fetchall()]
+            if DEBUG:
+                print(f"DEBUG: Diario entries for ricovero {ricovero_id} on {data_str}:", diario_entries)
+
+            if not any("contenzion" in (entry or "").lower() for entry in diario_entries):
+                print(f"❌ [Check Contenzioni 2.1] New contenzione: {desc} (code {code}) on {data_str} not justified in diario medico")
+            elif VERBOSE:
+                print(f"✅ [Check Contenzioni 2.1] New contenzione: {desc} (code {code}) justified on {data_str}")
 
     # === CHECK Dolore 3.1 ===
     if pai_dates:

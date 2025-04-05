@@ -9,17 +9,20 @@ from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
 from helpers.anagrafica import fetch_all_hospitalizations
 from helpers.alimentazione import get_default_start_date
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, must, mna, attivita
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, morse, must, mna, attivita
 import urllib3
 
 load_dotenv()
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+jwt_token = None
+
 def main():
     """Main execution flow for patient data retrieval and analysis."""
     print("🔄 Automating login and data retrieval...")
 
+    global jwt_token
     jwt_token = get_jwt_token_selenium(keep_browser_open=False)
     if not jwt_token:
         print("❌ Could not retrieve JWT token. Exiting.")
@@ -31,13 +34,13 @@ def main():
 
     def safe_fetch(func, *args, **kwargs):
         """Calls a function with the current JWT token, refreshes token if unauthorized."""
-        nonlocal jwt_token
+        global jwt_token
         try:
             return func(*args, jwt_token=jwt_token, **kwargs)
-        except requests.exceptions.HTTPError as err:
-            if err.response.status_code == 401:
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 401:
                 print("⚠️ Token expired. Attempting to refresh...")
-                jwt_token = refresh_jwt_token()
+                jwt_token = get_jwt_token_selenium(keep_browser_open=False)
                 return func(*args, jwt_token=jwt_token, **kwargs)
             else:
                 raise
@@ -110,10 +113,11 @@ def main():
             "15": "Braden",
             "16": "Tinetti",
             "17": "Conley",
-            "18": "MUST",
-            "19": "MNA",
-            "20": "Alimentazione/Idratazione (recent)",
-            "21": "Attività",
+            "18": "Morse",
+            "19": "MUST",
+            "20": "MNA",
+            "21": "Alimentazione/Idratazione (recent)",
+            "22": "Attività",
             "A": "all",
         }
 
@@ -228,33 +232,73 @@ def main():
                     print("⚠️ No CIRS data found.")
 
             if "13" in selected_data:
+                print(f"\n🏥 Processing idRicovero: {selected_id_ricovero}")
+
+                # 🧠 Esame neurologico
+                print("📡 Fetching Esame Neurologico...")
+                neurologico_data = safe_fetch(ingresso.fetch_esame_neurologico, selected_id_ricovero, selected_patient["nominativo"])
+                if neurologico_data:
+                    ingresso.save_esame_neurologico(neurologico_data, selected_id_ricovero)
+                    print("✅ Esame Neurologico saved.")
+                else:
+                    print("⚠️ No Esame Neurologico found.")
+
+                # 🫀 Esame obiettivo
+                print("📡 Fetching Esame Obiettivo...")
+                obiettivo_data = safe_fetch(ingresso.fetch_esame_obiettivo, selected_id_ricovero, selected_patient["nominativo"])
+                if obiettivo_data:
+                    ingresso.save_esame_obiettivo(obiettivo_data, selected_id_ricovero)
+                    print("✅ Esame Obiettivo saved.")
+                else:
+                    print("⚠️ No Esame Obiettivo found.")
+
+                # 🧾 Schede biografiche
                 print("📡 Fetching Schede Biografiche...")
                 schede_data = safe_fetch(ingresso.fetch_schede_biografiche, selected_id_ricovero)
                 if schede_data:
-                    print(f"✅ {len(schede_data)} schede biografiche fetched.")
+                    ingresso.save_schede_biografiche(schede_data, selected_id_ricovero)
+                    print(f"✅ {len(schede_data)} schede biografiche saved.")
                 else:
                     print("⚠️ No Schede Biografiche found.")
 
+                # 🗂 Cartella
                 print("📡 Fetching Cartella...")
-                cartella_data = safe_fetch(ingresso.fetch_cartella, selected_id_ricovero)
-                if cartella_data:
-                    print("✅ Cartella data fetched.")
+                cartella_id = ingresso.get_testata_id(selected_id_ricovero, "CartellaEntrata", jwt_token)
+                if cartella_id:
+                    cartella_data = safe_fetch(ingresso.fetch_cartella, cartella_id)
+                    if cartella_data:
+                        ingresso.save_cartella(cartella_data, selected_id_ricovero)
+                        print("✅ Cartella data saved.")
+                    else:
+                        print("⚠️ No Cartella data found.")
                 else:
-                    print("⚠️ No Cartella data found.")
+                    print("⚠️ No Cartella testata ID found.")
 
+                # 📋 Pair Accolta Dati
                 print("📡 Fetching Pair Accolta Dati...")
-                pair_data = safe_fetch(ingresso.fetch_pairaccoltadati, selected_id_ricovero)
-                if pair_data:
-                    print("✅ Pair Accolta Dati fetched.")
+                pair_id = ingresso.get_testata_id(selected_id_ricovero, "PaiRaccoltaDati", jwt_token)
+                if pair_id:
+                    pair_data = safe_fetch(ingresso.fetch_pairaccoltadati, pair_id)
+                    if pair_data:
+                        ingresso.save_pairaccoltadati(pair_data, selected_id_ricovero)
+                        print("✅ Pair Accolta Dati saved.")
+                    else:
+                        print("⚠️ No Pair Accolta Dati found.")
                 else:
-                    print("⚠️ No Pair Accolta Dati found.")
+                    print("⚠️ No Pair testata ID found.")
 
+                # 🦵 Fisioterapia
                 print("📡 Fetching Fisioterapia...")
-                fkt_data = safe_fetch(ingresso.fetch_fisioterapia, selected_id_ricovero)
-                if fkt_data:
-                    print("✅ Fisioterapia data fetched.")
+                fkt_id = ingresso.get_testata_id(selected_id_ricovero, "Fkt", jwt_token)
+                if fkt_id:
+                    fkt_data = safe_fetch(ingresso.fetch_fisioterapia, fkt_id)
+                    if fkt_data:
+                        ingresso.save_fisioterapia(fkt_data, selected_id_ricovero)
+                        print("✅ Fisioterapia data saved.")
+                    else:
+                        print("⚠️ No Fisioterapia data found.")
                 else:
-                    print("⚠️ No Fisioterapia data found.")
+                    print("⚠️ No Fisioterapia testata ID found.")
 
             if "14" in selected_data:
                 print("📡 Fetching Barthel...")
@@ -289,6 +333,14 @@ def main():
                     print("⚠️ No Conley data found.")
 
             if "18" in selected_data:
+                print("📡 Fetching Morse...")
+                morse_data = safe_fetch(morse.fetch_morse, selected_id_ricovero, selected_patient['nominativo'])
+                if morse_data:
+                    print("✅ Morse data saved.")
+                else:
+                    print("⚠️ No Morse data found.")
+
+            if "19" in selected_data:
                 print("📡 Fetching MUST...")
                 must_data = safe_fetch(must.fetch_must, selected_id_ricovero, selected_patient['nominativo'])
                 if must_data:
@@ -296,7 +348,7 @@ def main():
                 else:
                     print("⚠️ No MUST data found.")
 
-            if "19" in selected_data:
+            if "20" in selected_data:
                 print("📡 Fetching MNA...")
                 mna_data = safe_fetch(mna.fetch_mna, selected_id_ricovero, selected_patient['nominativo'])
                 if mna_data:
@@ -305,13 +357,13 @@ def main():
                     print("⚠️ No MNA data found.")
 
 
-            if "20" in selected_data:
+            if "21" in selected_data:
                 print("📡 Fetching alimentazione/idratazione from default start...")
                 start_date = safe_fetch(get_default_start_date, selected_patient["codOspite"], selected_id_ricovero)
                 intake_data = safe_fetch(alimentazione.fetch_alimentazione, selected_id_ricovero, start_date=start_date, infinite=True, skip_partial_check=False)
                 print(f"✅ {intake_data} records saved.")
 
-            if "21" in selected_data:
+            if "22" in selected_data:
                 print("📡 Fetching attività...")
                 ricovero_data = next((h for h in hospitalizations if h["id"] == selected_id_ricovero), None)
                 if ricovero_data:

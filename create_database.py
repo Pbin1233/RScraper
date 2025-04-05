@@ -442,6 +442,48 @@ CREATE TABLE IF NOT EXISTS contenzioni (
 """)
 
 cursor.execute("""
+CREATE TABLE IF NOT EXISTS dispositivi_contenzione (
+    id INTEGER PRIMARY KEY,
+    codArea INTEGER,
+    codDomanda INTEGER,
+    descrizione TEXT,
+    descrizione_de TEXT,
+    ordinamento INTEGER,
+    coefficiente REAL,
+    codifica TEXT,
+    abilitata TEXT,
+    coloreCodificaS2 TEXT,
+    etichetta TEXT,
+    label TEXT,
+    inputValueStr TEXT,
+    inputValueInt INTEGER
+);
+""")
+
+# Insert default values into dispositivi_contenzione
+dispositivi_values = [
+    (3192, 5, 50, "Cintura addominale", None, None, None, None, None, None, None, "Cintura addominale", None, 3192),
+    (7918, 5, 50, "Cintura pelvica", None, None, None, None, "T", None, None, "Cintura pelvica", None, 7918),
+    (7922, 5, 50, "Divaricatore inguinale", None, None, None, None, "T", None, None, "Divaricatore inguinale", None, 7922),
+    (3191, 5, 50, "Fascia a corpo a letto", None, None, None, None, "F", None, None, "Fascia a corpo a letto", None, 3191),
+    (7924, 5, 50, "Lenzuolo anticaduta", None, None, None, None, "T", None, None, "Lenzuolo anticaduta", None, 7924),
+    (7919, 5, 50, "Polsiere", None, None, None, None, "T", None, None, "Polsiere", None, 7919),
+    (3193, 5, 50, "Spondine letto", None, None, None, None, None, None, None, "Spondine letto", None, 3193),
+    (3194, 5, 50, "Tavolino", None, None, None, None, None, None, None, "Tavolino", None, 3194),
+    (7920, 5, 50, "Tutone", None, None, None, None, "T", None, None, "Tutone", None, 7920)
+]
+
+cursor.executemany("""
+INSERT OR IGNORE INTO dispositivi_contenzione (
+    id, codArea, codDomanda, descrizione, descrizione_de, ordinamento,
+    coefficiente, codifica, abilitata, coloreCodificaS2, etichetta,
+    label, inputValueStr, inputValueInt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+""", dispositivi_values)
+
+
+
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS lesioni (
     lesione_id INTEGER PRIMARY KEY,
     patient_id INTEGER,
@@ -1003,6 +1045,28 @@ CREATE TABLE IF NOT EXISTS conley (
     FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 )
 """)
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS morse (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    scadenza INTEGER,
+    cadute INTEGER,
+    diagnosi INTEGER,
+    mobilita INTEGER,
+    terapia INTEGER,
+    andatura INTEGER,
+    statoMentale INTEGER,
+    totale INTEGER,
+    note TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS attivita (
