@@ -45,7 +45,8 @@ def save_lesioni_data(patient_id, patient_name, testate_data, details_data):
             "dataFineFormatted": details.get("dataFineFormatted"),
             "dataFormatted": details.get("dataFormatted"),
             "idUltimoDett": details.get("idUltimoDett"),
-            "idUltimaMedicazioneV1": details.get("idUltimaMedicazioneV1")
+            "idUltimaMedicazioneV1": details.get("idUltimaMedicazioneV1"),
+            "presInIngr": details.get("presInIngr")
         }
 
         cursor.execute(f"""
@@ -73,7 +74,7 @@ def save_lesioni_data(patient_id, patient_name, testate_data, details_data):
                 "larghezza_s2": dettaglio.get("larghezza_s2"),
                 "profondita_s2": dettaglio.get("profondita_s2"),
                 "stadioFormatted": dettaglio.get("stadioFormatted"),
-                "numeroLesioni": dettaglio.get("numeroLesioni"),
+                "numeroLesioni": dettaglio.get("numeroLesioni")
             }
 
             cursor.execute(f"""

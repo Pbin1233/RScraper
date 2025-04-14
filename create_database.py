@@ -499,6 +499,7 @@ CREATE TABLE IF NOT EXISTS lesioni (
     dataFormatted TEXT,
     idUltimoDett INTEGER,
     idUltimaMedicazioneV1 INTEGER,
+    presInIngr TEXT,
     FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
 );
 """)

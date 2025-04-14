@@ -278,74 +278,84 @@ def check_indicatore_generale_2(cursor, hospitalization_id, data_dal):
 
     results = {}
 
-    # Get all PAI + PI dates (sorted, distinct)
-    cursor.execute("""
-        SELECT DISTINCT date(data) FROM pai WHERE patient_id = ?
-        UNION
-        SELECT DISTINCT date(data) FROM pi WHERE patient_id = ?
-        ORDER BY date(data)
-    """, (hospitalization_id, hospitalization_id))
-    pai_dates_raw = cursor.fetchall()
-    pai_dates = [datetime.strptime(d[0], "%Y-%m-%d") for d in pai_dates_raw]
+    # --- Collect PAI and PI dates separately ---
+    cursor.execute("SELECT DISTINCT date(data) FROM pai WHERE patient_id = ? ORDER BY date(data)", (hospitalization_id,))
+    pai_dates = [datetime.strptime(d[0], "%Y-%m-%d") for d in cursor.fetchall()]
 
-    if not pai_dates:
-        results["ig2_timing_first_pai"] = "missing"
-        results["ig2_interval_spacing"] = "missing"
-        results["ig2_activities_medical"] = "missing"
-        results["ig2_activities_educator"] = "missing"
-        results["ig2_activities_fkt"] = "missing"
-        return results
+    cursor.execute("SELECT DISTINCT date(data) FROM pi WHERE patient_id = ? ORDER BY date(data)", (hospitalization_id,))
+    pi_dates = [datetime.strptime(d[0], "%Y-%m-%d") for d in cursor.fetchall()]
 
-    # Check first PAI within 30 days of ricovero
+    # --- Check first PAI within 30 days of ricovero ---
     try:
         dal_date = datetime.strptime(data_dal.split(" ")[0], "%Y-%m-%d")
     except ValueError:
         results["ig2_timing_first_pai"] = "error"
         return results
 
-    if (pai_dates[0] - dal_date).days > 30:
+    if not pai_dates:
+        results["ig2_timing_first_pai"] = "missing"
+    elif (pai_dates[0] - dal_date).days > 30:
         results["ig2_timing_first_pai"] = "warn"
     else:
         results["ig2_timing_first_pai"] = "ok"
 
-    # Check interval spacing
-    interval_valid = all((pai_dates[i+1] - pai_dates[i]).days <= 187 for i in range(len(pai_dates)-1))
-    results["ig2_interval_spacing"] = "ok" if interval_valid else "warn"
+    # --- Check PAI date intervals ---
+    pai_ok = all((pai_dates[i+1] - pai_dates[i]).days <= 187 for i in range(len(pai_dates)-1))
+    results["ig2_interval_spacing_pai"] = "ok" if pai_ok else "warn"
 
-    # Activity issues: track per interval
+    # --- Check PI date intervals ---
+    pi_ok = all((pi_dates[i+1] - pi_dates[i]).days <= 187 for i in range(len(pi_dates)-1))
+    results["ig2_interval_spacing_pi"] = "ok" if pi_ok else "warn"
+
+    # --- If fewer than 2 PAI, skip activity check ---
+    if len(pai_dates) < 2:
+        results["ig2_activities_medical"] = "missing"
+        results["ig2_activities_educator"] = "missing"
+        results["ig2_activities_fkt"] = "missing"
+        return results
+
+    # --- Activity mapping check between each pair of PAI dates ---
     medical_issues = []
     educator_issues = []
     fkt_issues = []
 
-    for i in range(len(pai_dates)-1):
-        start = pai_dates[i]
-        end = pai_dates[i+1]
+    # Add extended pai_dates list with final boundary (for last interval)
+    extended_pai_dates = pai_dates[:]
+    if pai_dates:
+        if al:
+            try:
+                discharge_date = datetime.strptime(al.split(" ")[0], "%Y-%m-%d")
+            except ValueError:
+                discharge_date = datetime.today()
+        else:
+            discharge_date = datetime.today()
+        extended_pai_dates.append(discharge_date)
+
+    for i in range(len(extended_pai_dates) - 1):
+        start = extended_pai_dates[i]
+        end = extended_pai_dates[i + 1]
         delta_days = (end - start).days
         weeks = max(delta_days // 7, 1)
 
         cursor.execute("""
-            SELECT title, description FROM attivita
+            SELECT title FROM attivita
             WHERE idRicovero = ? AND date(data) BETWEEN date(?) AND date(?)
         """, (hospitalization_id, start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")))
-        activities = cursor.fetchall()
+        titles = [t[0].strip() for t in cursor.fetchall()]
 
-        titles = [t.strip().upper() for t, _ in activities]
-
-        # Medical match
+        # --- Category matching ---
         if not any(t in ["MED", "CTRL PRESS"] for t in titles):
             medical_issues.append((start.strftime("%d-%m-%Y"), end.strftime("%d-%m-%Y")))
 
-        # Educator match
-        educator_count = sum(t in ["CRUCI", "CORO"] for t in titles)
-        if educator_count < weeks:
+        educator_count = sum(t in ["CRUCI", "CORO", "musica", "CIN", "TOM", "C BEN", "OLI", "G A.A."] for t in titles)
+        if educator_count < weeks*0.9:
             educator_issues.append((start.strftime("%d-%m-%Y"), end.strftime("%d-%m-%Y")))
 
-        # FKT match
-        fkt_count = sum(t in ["MOBPASS", "PASPOST", "D ASS", "CYC"] for t in titles)
-        if fkt_count < (2 * weeks):
+        fkt_count = sum(t in ["MOBPASS", "PASPOST", "D ASS", "CYC", "GPGR", "MA/MR", "PG"] for t in titles)
+        if fkt_count < (2 * weeks)*0.9:
             fkt_issues.append((start.strftime("%d-%m-%Y"), end.strftime("%d-%m-%Y")))
 
-    # Add final results
+    # --- Final status and intervals ---
     results["ig2_activities_medical"] = "ok" if not medical_issues else "warn"
     results["ig2_activities_educator"] = "ok" if not educator_issues else "warn"
     results["ig2_activities_fkt"] = "ok" if not fkt_issues else "warn"
@@ -426,7 +436,8 @@ with open("autocontrollo.html", mode='w', encoding='utf-8') as f:
         for rec in results_by_year[year]:
             f.write(f"<div><h3>{rec['nome']} {rec['cognome']} (codOspite: {rec['codOspite']})</h3>")
             f.write(f"<p><b>Hospitalization {rec['ricovero_id']}</b> (dal: {rec['dal']} - al: {rec['al']})</p>")
-            f.write("<h4>Indicatore Generale 1</h4>")
+            f.write("<h3>Indicatore Generale 1</h3>")
+            f.write("<h4>Controllo ingresso</h4>")
             f.write("<ul>")
             grouped_pai = defaultdict(list)
 
@@ -455,7 +466,7 @@ with open("autocontrollo.html", mode='w', encoding='utf-8') as f:
                 f.write("</ul>")
 
             # IG2
-            f.write("<h4>Indicatore Generale 2</h4>")
+            f.write("<h3>Indicatore Generale 2</h3>")
             f.write("<ul>")
 
             IG2_LABELS = {
