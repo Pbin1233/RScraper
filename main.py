@@ -9,7 +9,7 @@ from helpers.auth import get_jwt_token_selenium, refresh_jwt_token
 from helpers.fetch_patient_list import fetch_patient_list
 from helpers.anagrafica import fetch_all_hospitalizations
 from helpers.alimentazione import get_default_start_date
-from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, morse, must, mna, attivita
+from helpers import cadute, diari_parametri, terapia, alimentazione, anagrafica, contenzioni, lesioni, pi_pai, painad, nrs, cirs, ingresso, barthel, braden, tinetti, conley, morse, must, mna, mmse, gbs, attivita
 import urllib3
 
 load_dotenv()
@@ -117,7 +117,9 @@ def main():
             "19": "MUST",
             "20": "MNA",
             "21": "Alimentazione/Idratazione (recent)",
-            "22": "Attività",
+            "22": "MMSE",
+            "23": "GBS",
+            "24": "Attività",
             "A": "all",
         }
 
@@ -364,6 +366,24 @@ def main():
                 print(f"✅ {intake_data} records saved.")
 
             if "22" in selected_data:
+                print("📡 Fetching MMSE...")
+                from helpers import mmse  # Import here if not global
+                mmse_data = safe_fetch(mmse.fetch_mmse, selected_id_ricovero, selected_patient['nominativo'])
+                if mmse_data:
+                    print("✅ MMSE data saved.")
+                else:
+                    print("⚠️ No MMSE data found.")
+
+            if "23" in selected_data:
+                print("📡 Fetching GBS...")
+                from helpers import gbs  # Optional: import at top if preferred
+                gbs_data = safe_fetch(gbs.fetch_gbs, selected_id_ricovero, selected_patient['nominativo'])
+                if gbs_data:
+                    print("✅ GBS data saved.")
+                else:
+                    print("⚠️ No GBS data found.")
+
+            if "24" in selected_data:
                 print("📡 Fetching attività...")
                 ricovero_data = next((h for h in hospitalizations if h["id"] == selected_id_ricovero), None)
                 if ricovero_data:

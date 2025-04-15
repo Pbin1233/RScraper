@@ -1090,6 +1090,75 @@ CREATE TABLE IF NOT EXISTS attivita (
 )
 """)
 
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS mmse (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    punteggio INTEGER,
+    scadenza INTEGER,
+    fattoreCorrezione REAL,
+    convertito TEXT,
+    nonSomministrabile TEXT,
+    orientamento INTEGER,
+    spazio INTEGER,
+    memoria INTEGER,
+    memoriaTent INTEGER,
+    attenzione INTEGER,
+    richiamo INTEGER,
+    linguaggio INTEGER,
+    ripetizione INTEGER,
+    compito INTEGER,
+    ordine INTEGER,
+    frase INTEGER,
+    copiaDisegno INTEGER,
+    totale INTEGER,
+    corretto REAL,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS gbs (
+    id INTEGER PRIMARY KEY,
+    patient_id INTEGER,
+    data TEXT,
+    compilatore INTEGER,
+    compilatoreNominativo TEXT,
+    compilatoreFigProf TEXT,
+    note TEXT,
+    scadenza INTEGER,
+    convertito TEXT,
+    nonsomministrabile TEXT,
+    sdconfusione INTEGER,
+    sdirritabilita INTEGER,
+    sdansia INTEGER,
+    sdangoscia INTEGER,
+    sddepressione INTEGER,
+    sdirrequietezza INTEGER,
+    agendaFunzione TEXT,
+    FOREIGN KEY (patient_id) REFERENCES hospitalizations_history(idRicoveroCU)
+);
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS manual_overrides (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ricovero_id INTEGER,
+    check_key TEXT,
+    override_status TEXT,
+    note TEXT,
+    timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(ricovero_id, check_key),
+    FOREIGN KEY (ricovero_id) REFERENCES hospitalizations_history(id)
+);
+""")
+
+
 # Save and close
 conn.commit()
 conn.close()

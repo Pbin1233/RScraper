@@ -8,7 +8,6 @@ from pathlib import Path
 results_by_year = defaultdict(list)
 csv_rows = []
 
-# HTML icons
 STATUS_ICONS = {
     "ok": "✅",
     "warn": "⚠️",
@@ -16,7 +15,58 @@ STATUS_ICONS = {
     "todo": "ℹ️"
 }
 
+def format_label(key, strip_prefix=None):
+    if strip_prefix and key.startswith(strip_prefix):
+        key = key[len(strip_prefix):]
+    return key.replace("_", " ").capitalize()
+
+def build_dropdown(ricovero_id, check, status):
+    real_status = status.replace(" (manual)", "") if isinstance(status, str) else ""
+    is_manual = status.endswith(" (manual)") if isinstance(status, str) else False
+
+    def option(value, label):
+        selected = "selected" if is_manual and value == real_status else ""
+        return f'<option value="{value}" {selected}>{label}</option>'
+
+    return f"""
+    <select data-ricovero="{ricovero_id}" data-checkkey="{check}">
+      <option value="">--</option>
+      <option value="_clear_">🗑️ Cancella override</option>
+      {option("ok", "✅ ok")}
+      {option("warn", "⚠️ warn")}
+      {option("missing", "❌ missing")}
+      {option("todo", "ℹ️ todo")}
+    </select>
+    """
+
+def render_check_block(f, title, checks, ricovero_id, strip_prefix=None):
+    f.write(f"<h2>{title}</h2><ul>")
+    for key, status in checks.items():
+        if not isinstance(status, str):
+            continue  # Skip intervals or unexpected non-status entries
+        label = format_label(key, strip_prefix)
+        clean_status = status.replace(" (manual)", "") if isinstance(status, str) else status
+        icon = STATUS_ICONS.get(clean_status, "")
+        dropdown = build_dropdown(ricovero_id, key, status)
+        f.write(f"<li>{icon} {label}: {status} {dropdown}</li>")
+    f.write("</ul>")
+
+def parse_date(d):
+    try:
+        return datetime.strptime(d, "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        try:
+            return datetime.strptime(d, "%Y-%m-%d")
+        except Exception:
+            return datetime.min  # fallback for sorting
+
+all_records = sum(results_by_year.values(), [])  # flatten list of lists
+all_records.sort(key=lambda r: parse_date(r['al']), reverse=True)  # latest first
+
 today_str = datetime.today().strftime("%d-%m-%Y")
+
+html_file = open("autocontrollo.html", "w", encoding="utf-8")
+html_file.write(f"<h1>Autocontrollo ({today_str})</h1>")
 
 def extract_year_or_status(dal, al):
     if al is None:
@@ -64,8 +114,12 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
     """, (hospitalization_id, data_dal))
     check_results["cirs"] = "ok" if cursor.fetchone() else "missing"
 
-    # GBS (placeholder)
-    check_results["gbs"] = "todo"
+    # GBS ingresso (within 4 days from dal)
+    cursor.execute("""
+        SELECT id FROM gbs
+        WHERE patient_id = ? AND date(data) BETWEEN date(?) AND date(?, '+3 days')
+    """, (hospitalization_id, data_dal, data_dal))
+    check_results["gbs"] = "ok" if cursor.fetchone() else "missing"
 
     # Lesioni da pressione (LDP)
     trigger_lesione_check = False
@@ -159,8 +213,12 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
     """, (hospitalization_id, data_dal, data_dal))
     check_results["scheda_biografica"] = "ok" if cursor.fetchone() else "missing"
 
-    # MMSE (placeholder)
-    check_results["mmse"] = "todo"
+    # MMSE ingresso (within 15 days from dal)
+    cursor.execute("""
+        SELECT id FROM mmse
+        WHERE patient_id = ? AND date(data) BETWEEN date(?) AND date(?, '+14 days')
+    """, (hospitalization_id, data_dal, data_dal))
+    check_results["mmse"] = "ok" if cursor.fetchone() else "missing"
 
     # --- Physiotherapy Domain ---
 
@@ -220,8 +278,12 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
         """, (hospitalization_id, pai_date, pai_date))
         check_results[f"{prefix}_cirs"] = "ok" if cursor.fetchone() else "missing"
 
-        # GBS (placeholder)
-        check_results[f"{prefix}_gbs"] = "todo"
+        # GBS pre-PAI (within 7 days before)
+        cursor.execute("""
+            SELECT id FROM gbs
+            WHERE patient_id = ? AND date(data) BETWEEN date(?, '-6 days') AND date(?)
+        """, (hospitalization_id, pai_date, pai_date))
+        check_results[f"{prefix}_gbs"] = "ok" if cursor.fetchone() else "missing"
 
         # Barthel
         cursor.execute("""
@@ -255,8 +317,12 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
         else:
             check_results[f"{prefix}_disfagia_diario"] = "missing"
 
-        # MMSE (placeholder)
-        check_results[f"{prefix}_mmse"] = "todo"
+        # MMSE pre-PAI (within 7 days before)
+        cursor.execute("""
+            SELECT id FROM mmse
+            WHERE patient_id = ? AND date(data) BETWEEN date(?, '-6 days') AND date(?)
+        """, (hospitalization_id, pai_date, pai_date))
+        check_results[f"{prefix}_mmse"] = "ok" if cursor.fetchone() else "missing"
 
         # NPI, CDR (placeholder)
         check_results[f"{prefix}_npi_cdr"] = "todo"
@@ -373,6 +439,14 @@ def check_indicatore_generale_2(cursor, hospitalization_id, data_dal):
 conn = sqlite3.connect("borromea.db")
 cursor = conn.cursor()
 
+# Load manual overrides into a dict
+cursor.execute("SELECT ricovero_id, check_key, override_status FROM manual_overrides")
+override_rows = cursor.fetchall()
+
+manual_overrides = defaultdict(dict)
+for ricovero_id, key, status in override_rows:
+    manual_overrides[ricovero_id][key] = status
+
 # Load patient list with names
 cursor.execute("SELECT codOspite, nome, cognome FROM personal_data")
 patients = cursor.fetchall()
@@ -387,7 +461,19 @@ for codOspite, nome, cognome in patients:
         year = extract_year_or_status(dal, al)
         checks, pai_dates = check_indicatore_generale_1(cursor, hospitalization_id, dal)
         ig2 = check_indicatore_generale_2(cursor, hospitalization_id, dal)
-        all_checks = {**checks, **ig2}
+
+        all_checks = {**checks, **ig2}  # define all_checks first
+
+        # Apply manual overrides AFTER defining all_checks
+        if hospitalization_id in manual_overrides:
+            for key, value in manual_overrides[hospitalization_id].items():
+                # Always strip any pre-existing "(manual)" or similar suffix
+                current_val = all_checks.get(key, "")
+                if "(manual)" in current_val:
+                    current_val = current_val.replace(" (manual)", "")
+
+                # Override and tag
+                all_checks[key] = f"{value} (manual)"
 
         record = {
             'codOspite': codOspite,
@@ -427,71 +513,77 @@ with open("autocontrollo.csv", mode='w', newline='', encoding='utf-8') as f:
 
 
 # Write HTML
-with open("autocontrollo.html", mode='w', encoding='utf-8') as f:
-    f.write(f"<h1>Autocontrollo ({today_str})</h1>")
+all_records = sum(results_by_year.values(), [])  # flatten
+all_records.sort(key=lambda r: parse_date(r['al']), reverse=True)
 
-    for year in sorted(results_by_year.keys(), key=lambda y: (y != "Still Active", -int(y) if isinstance(y, int) else 0)):
-        f.write(f"<h2>Hospitalizations ending in {year}</h2>")
+html_file = open("autocontrollo.html", "w", encoding="utf-8")
+html_file.write(f"<h1>Autocontrollo ({today_str})</h1>")
+
+# Group records by year
+grouped = defaultdict(list)
+for rec in all_records:
+    grouped[rec["year"]].append(rec)
+
+# Sort years descending, putting "Still Active" at the end
+years_sorted = sorted([y for y in grouped if y != "Still Active"], reverse=True)
+if "Still Active" in grouped:
+    years_sorted.append("Still Active")
+
+years_sorted = reversed(years_sorted)
+
+# Render HTML grouped by year
+for year in years_sorted:
+    html_file.write(f"<h2>{year}</h2>")
+
+    for rec in grouped[year]:
+        ricovero_id = rec["ricovero_id"]
+
+        ingresso_checks = {}
+        pai_checks = {}
+        ig2_checks = {}
+
+        for key, status in rec["checks"].items():
+            if key.startswith("ig2_"):
+                ig2_checks[key] = status
+            elif key.startswith("PAI_"):
+                pai_checks[key] = status
+            else:
+                ingresso_checks[key] = status
+
+        # Separate ingresso from PAI in IG1
+        ig1_ingresso_checks = {}
+        pai_blocks = defaultdict(dict)  # e.g. "PAI_01": { "barthel": "ok", ... }
+
+        for key, status in pai_checks.items():
+            if "_" in key:
+                prefix, suffix = key.split("_", 1)
+                if prefix.startswith("PAI"):
+                    pai_blocks[prefix][suffix] = status
+            else:
+                ig1_ingresso_checks[key] = status
+
+        html_file.write(f"<h3>{rec['nome']} {rec['cognome']} — Ricovero {ricovero_id}</h3>")
+        html_file.write(f"<p>Dal: {rec['dal']} | Al: {rec['al']}</p>")
+
+        html_file.write(f"<h3>Indicatore Generale 1</h3>")
+        render_check_block(html_file, "Ingresso", ingresso_checks, ricovero_id)
+        for pai_label in sorted(pai_blocks.keys()):
+            html_file.write(f"<h4 style='margin-left: 20px'>{pai_label.replace('_', ' ')}</h4>")
+            html_file.write("<ul style='margin-left: 40px'>")
+            for subkey, status in pai_blocks[pai_label].items():
+                full_key = f"{pai_label}_{subkey}"
+                label = subkey.replace("_", " ").capitalize()
+                clean_status = status.replace(" (manual)", "") if isinstance(status, str) else status
+                icon = STATUS_ICONS.get(clean_status, "")
+                dropdown = build_dropdown(ricovero_id, full_key, status)
+                html_file.write(f"<li>{icon} {label}: {status} {dropdown}</li>")
+            html_file.write("</ul>")
+
+        render_check_block(html_file, "Indicatore Generale 2", ig2_checks, ricovero_id, strip_prefix="ig2_")
+
+        html_file.write("<hr>")
         
-        for rec in results_by_year[year]:
-            f.write(f"<div><h3>{rec['nome']} {rec['cognome']} (codOspite: {rec['codOspite']})</h3>")
-            f.write(f"<p><b>Hospitalization {rec['ricovero_id']}</b> (dal: {rec['dal']} - al: {rec['al']})</p>")
-            f.write("<h3>Indicatore Generale 1</h3>")
-            f.write("<h4>Controllo ingresso</h4>")
-            f.write("<ul>")
-            grouped_pai = defaultdict(list)
+html_file.close()
 
-            for check, status in rec["checks"].items():
-                icon = STATUS_ICONS.get(status, '') if isinstance(status, str) else ''
-                
-                if check.startswith("PAI_"):
-                    parts = check.split("_", 2)
-                    group_key = f"{parts[0]} {parts[1]}"
-                    field_name = parts[2].replace('_', ' ').capitalize()
-                    grouped_pai[group_key].append((field_name, icon, status))
-                elif not check.startswith("ig2_"):  # only IG1 stuff here
-                    f.write(f"<li>{icon} {check.replace('_', ' ').capitalize()}: {status}</li>")
-            f.write("</ul>")
-
-            if grouped_pai:
-                f.write("<h4>Follow-up PAI checks</h4>")
-                f.write("<ul>")
-                for pai_label, items in sorted(grouped_pai.items()):
-                    pai_date = rec.get("pai_dates", {}).get(pai_label.replace(" ", "_"))
-                    label = f"{pai_label} ({pai_date})" if pai_date else pai_label
-                    f.write(f"<li><b>{label}</b><ul>")
-                    for field_name, icon, status in items:
-                        f.write(f"<li>{icon} {field_name}: {status}</li>")
-                    f.write("</ul></li>")
-                f.write("</ul>")
-
-            # IG2
-            f.write("<h3>Indicatore Generale 2</h3>")
-            f.write("<ul>")
-
-            IG2_LABELS = {
-                "ig2_timing_first_pai": "Primo PAI/PI entro 30 giorni dal ricovero",
-                "ig2_interval_spacing": "Intervallo tra PAI/PI max 6 mesi + 7 giorni",
-                "ig2_activities_medical": "Attività mediche (es. medicazione LDP, pressione, ossigeno)",
-                "ig2_activities_educator": "Attività educatori (min. 1 a settimana)",
-                "ig2_activities_fkt": "Attività fisioterapiche (min. 2 a settimana)"
-            }
-
-            for check, status in rec["checks"].items():
-                # Show only the main IG2 status lines (not _intervals and not lists)
-                if check.startswith("ig2_") and not check.endswith("_intervals") and isinstance(status, str):
-                    icon = STATUS_ICONS.get(status, '')
-                    label = IG2_LABELS.get(check, check.replace('_', ' ').capitalize())
-                    f.write(f"<li>{icon} {label}: {status}</li>")
-
-                    # If interval breakdown exists, show them nested
-                    interval_key = f"{check}_intervals"
-                    if interval_key in rec["checks"] and isinstance(rec["checks"][interval_key], list):
-                        for start, end in rec["checks"][interval_key]:
-                            f.write(f"<li style='margin-left: 20px'>⏱️ Tra {start} e {end}</li>")
-
-            f.write("</ul>")
-
-    f.write("</body></html>")
 
 conn.close()
