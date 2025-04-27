@@ -37,7 +37,7 @@ def save_to_db(entries):
     conn.commit()
     conn.close()
 
-def fetch_attivita(id_ricovero, jwt_token, ricovero_start, ricovero_end=None):
+def fetch_attivita(id_ricovero, *, jwt_token, ricovero_start, ricovero_end=None):
     ricovero_end = ricovero_end or datetime.now()
 
     print(f"📆 Fetching attività from {ricovero_start.date()} to {ricovero_end.date()}")

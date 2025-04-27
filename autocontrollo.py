@@ -265,8 +265,8 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
     # Scheda anamnesi
     cursor.execute("""
         SELECT id FROM fisioterapia
-        WHERE patient_id = ? AND date(data) BETWEEN date(?) AND date(?, '+6 days')
-    """, (hospitalization_id, data_dal, data_dal))
+        WHERE patient_id = ?
+    """, (hospitalization_id))
     check_results["scheda_anamnesi"] = "ok" if cursor.fetchone() else "missing"
 
     # Conley or Tinetti

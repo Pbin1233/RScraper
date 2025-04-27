@@ -103,9 +103,23 @@ def fetch_alimentazione(id_ricovero, jwt_token, start_date=None, infinite=True, 
         }
 
         print(f"📡 API Call: {ALIM_URL} → {params['data']}")
-        response = requests.get(ALIM_URL, headers=headers, params=params, verify=False)
-        response.raise_for_status()
-        json_data = response.json()
+        # Robust request with retry-on-token-expiration
+        while True:
+            try:
+                response = requests.get(ALIM_URL, headers=headers, params=params, verify=False)
+                if response.status_code == 401:
+                    print("🔄 Token expired mid-scrape. Refreshing...")
+                    from helpers.auth import get_jwt_token_selenium
+                    jwt_token = get_jwt_token_selenium(keep_browser_open=False)
+                    headers["CBA-JWT"] = f"Bearer {jwt_token}"
+                    continue  # Retry current week
+                response.raise_for_status()
+                json_data = response.json()  # ✅ FIX: parse here after success
+                break  # Exit retry loop
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Error fetching week {week_start.date()}: {e}")
+                return total_saved  # Abort and keep progress
+
         entries = json_data.get("data", [])
 
         if not entries:
