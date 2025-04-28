@@ -128,8 +128,8 @@ def fetch_cirs(patient_id, patient_name, jwt_token):
                 known_ids.add(d["id"])
 
     if not all_testate:
-        print("⚠️ No CIRS entries found.")
-        return []
+        print("⚠️ No CIRS headers found.")
+        return None
 
     while True:
         last = all_testate[-1]
@@ -160,6 +160,10 @@ def fetch_cirs(patient_id, patient_name, jwt_token):
         d = fetch_cirs_details(t["id"], jwt_token)
         if d:
             details_map[t["id"]] = d
+
+    if not details_map:
+        print("⚠️ No CIRS details successfully downloaded.")
+        return None
 
     save_cirs_data(patient_id, patient_name, all_testate, details_map)
     return all_testate

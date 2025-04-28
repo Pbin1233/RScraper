@@ -266,7 +266,7 @@ def check_indicatore_generale_1(cursor, hospitalization_id, data_dal):
     cursor.execute("""
         SELECT id FROM fisioterapia
         WHERE patient_id = ?
-    """, (hospitalization_id))
+    """, (hospitalization_id,))
     check_results["scheda_anamnesi"] = "ok" if cursor.fetchone() else "missing"
 
     # Conley or Tinetti
@@ -693,13 +693,12 @@ grouped = defaultdict(list)
 for rec in all_records:
     grouped[rec["year"]].append(rec)
 
-# Sort years descending, putting "Still Active" at the end
+# Sort years descending
 years_sorted = sorted([y for y in grouped if y != "Still Active"], reverse=True)
+
+# Insert "Still Active" at the beginning if it exists
 if "Still Active" in grouped:
-    years_sorted.append("Still Active")
-
-years_sorted = reversed(years_sorted)
-
+    years_sorted = ["Still Active"] + years_sorted
 
 # Render HTML grouped by year
 for year in years_sorted:
