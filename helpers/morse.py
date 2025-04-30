@@ -164,5 +164,10 @@ def fetch_morse(patient_id, patient_name, jwt_token):
         if d:
             details_map[t["id"]] = d
 
+    if not details_map:
+        print("⚠️ No Morse details successfully downloaded.")
+        return None
+
     save_morse_data(patient_id, patient_name, all_testate, details_map)
     return all_testate
+

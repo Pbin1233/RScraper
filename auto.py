@@ -99,32 +99,65 @@ def mark_type_scraped(ricovero_id, data_type):
 def safe_fetch(func, *args, **kwargs):
     global jwt_token
     try:
+        print(f"🔐 Using token: {jwt_token[:30]}...")  # LOG CURRENT TOKEN
         return func(*args, jwt_token=jwt_token, **kwargs)
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 401:
             print("⚠️ Token expired. Attempting to refresh...")
             try:
                 new_token = auth.get_jwt_token_selenium(keep_browser_open=False)
+                print(f"🆕 New token: {new_token[:30]}...")  # LOG NEW TOKEN
                 if not new_token:
                     raise RuntimeError("❌ Failed to retrieve new token after expiration")
                 jwt_token = new_token
-                print("✅ New JWT Token Retrieved. Retrying request...")
-                
-                # Retry original function call
-                retried_result = func(*args, jwt_token=jwt_token, **kwargs)
+                print("✅ New JWT Token set. Retrying...")
 
-                # Validate the retried result here
-                if retried_result is None:
-                    raise RuntimeError("❌ Retried request after token refresh returned None. Stopping scrape.")
-                return retried_result
+                def validate_token(jwt_token):
+                    url = "https://pvc003.zucchettihc.it:4445/cba/css/cs/ws/testate/get"
+                    headers = {
+                        "CBA-JWT": f"Bearer {jwt_token}",
+                        "Content-Type": "application/json"
+                    }
+                    params = {
+                        "_dc": str(int(time.time() * 1000)),
+                        "tipoTestata": "Morse",
+                        "idRicovero": 1,  # safe dummy ID
+                        "idProfilo": 3,
+                        "compilatore": 27,
+                        "page": 1,
+                        "start": 0,
+                        "limit": 1
+                    }
+                    r = requests.get(url, headers=headers, params=params, verify=False)
+                    return r.status_code
+
+                jwt_token = new_token
+                print("✅ New JWT Token set. Validating it...")
+
+                test_status = validate_token(jwt_token)
+                print(f"🧪 Token validation status: {test_status}")
+
+                if test_status == 401:
+                    raise RuntimeError("❌ New token is invalid immediately after login.")
+
+                try:
+                    retry_response = func(*args, jwt_token=jwt_token, **kwargs)
+                    print("✅ Retry succeeded.")
+                    return retry_response
+                except requests.exceptions.HTTPError as retry_error:
+                    print(f"❌ Retry failed with status: {retry_error.response.status_code}")
+                    raise retry_error
+
             except Exception as refresh_error:
-                print(f"❌ Critical: Failed to refresh token properly: {refresh_error}")
-                raise RuntimeError("❌ Token refresh failure, stopping script") from refresh_error
+                print(f"❌ Critical token refresh failure: {refresh_error}")
+                raise
         else:
             raise
-    except requests.exceptions.ConnectionError as e:
-        print(f"🚫 Connection failed: {e}")
-        return None
+    except Exception as e:
+        print(f"🚫 Unexpected error in safe_fetch: {e}")
+        raise
+
+
 
 def main():
     global jwt_token
@@ -161,6 +194,14 @@ def main():
         past_ricoveri = [r for r in ricoveri if is_past_hospitalization(r)]
         for ricovero in past_ricoveri:
             ricovero_id = ricovero["id"]
+            dal_str = ricovero.get("dal", "N/A")
+            al_str = ricovero.get("al") or "ACTIVE"
+            patient_name = patient.get("nominativo", f'{patient.get("cognome", "")} {patient.get("nome", "")}')
+            print(f"📦 Scraping ricovero {ricovero_id} for {patient_name} | dal: {dal_str} | al: {al_str}")
+
+            if not is_past_hospitalization(ricovero):
+                print(f"⏩ Skipping active ricovero {ricovero_id} (al = {ricovero.get('al')})")
+                continue
             scraped = get_scraped_types(ricovero_id)
 
             # 🔥 Skip hospitalization if everything already scraped

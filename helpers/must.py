@@ -57,6 +57,9 @@ def save_must_data(patient_id, entries):
 
 def fetch_must(id_ricovero, patient_name, jwt_token):
     entries = fetch_must_details(id_ricovero, jwt_token)
-    if entries:
-        save_must_data(id_ricovero, entries)
+    if not entries:
+        print("⚠️ No MUST entries found.")
+        return None
+
+    save_must_data(id_ricovero, entries)
     return entries

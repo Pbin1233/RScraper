@@ -121,6 +121,10 @@ def fetch_painad(patient_id, patient_name, jwt_token):
         if d:
             details_map[t["id"]] = d
 
+    if not details_map:
+        print("⚠️ No PAINAD details successfully downloaded.")
+        return None
+
     save_painad_data(patient_id, patient_name, all_testate, details_map)
     return all_testate
 

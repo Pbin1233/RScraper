@@ -155,5 +155,10 @@ def fetch_conley(patient_id, patient_name, jwt_token):
         if d:
             details_map[t["id"]] = d
 
+    if not details_map:
+        print("⚠️ No Conley details successfully downloaded.")
+        return None
+
     save_conley_data(patient_id, patient_name, all_testate, details_map)
     return all_testate
+

@@ -172,5 +172,10 @@ def fetch_braden(patient_id, patient_name, jwt_token):
         if d:
             details_map[t["id"]] = d
 
+    if not details_map:
+        print("⚠️ No Braden details successfully downloaded.")
+        return None
+
     save_braden_data(patient_id, patient_name, all_testate, details_map)
     return all_testate
+

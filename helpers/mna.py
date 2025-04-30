@@ -154,5 +154,10 @@ def fetch_mna(patient_id, patient_name, jwt_token):
         if d:
             details_map[t["id"]] = d
 
+    if not details_map:
+        print("⚠️ No MNA details successfully downloaded.")
+        return None
+
     save_mna_data(patient_id, all_testate, details_map)
     return all_testate
+
